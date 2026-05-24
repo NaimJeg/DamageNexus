@@ -1,0 +1,15 @@
+{
+  "replace": false,
+  "values": [
+    "#damagenexus:is_spear_stab",
+    "#damagenexus:is_spear_charge",
+    {
+      "id": "minecraft:spear",
+      "required": false
+    },
+    {
+      "id": "damagenexus:spear_attack",
+      "required": false
+    }
+  ]
+}

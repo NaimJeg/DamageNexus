@@ -1,0 +1,30 @@
+{
+  "replace": false,
+  "values": [
+    "#minecraft:is_projectile",
+    {
+      "id": "minecraft:arrow",
+      "required": false
+    },
+    {
+      "id": "minecraft:trident",
+      "required": false
+    },
+    {
+      "id": "minecraft:mob_projectile",
+      "required": false
+    },
+    {
+      "id": "minecraft:fireworks",
+      "required": false
+    },
+    {
+      "id": "minecraft:fireball",
+      "required": false
+    },
+    {
+      "id": "minecraft:thrown",
+      "required": false
+    }
+  ]
+}

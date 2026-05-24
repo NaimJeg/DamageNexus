@@ -1,0 +1,9 @@
+{
+  "channel": "damagenexus:physical",
+  "trigger_tags": [
+    "damagenexus:is_physical"
+  ],
+  "resistance_attribute": "damagenexus:resistance_physical",
+  "affected_by_armor": true,
+  "priority": 0
+}

@@ -28,6 +28,7 @@ bin/
 
 ### VS Code ###
 .vscode/
+.VSCodeCounter/
 
 ### Mac OS ###
 .DS_Store
@@ -38,3 +39,4 @@ run/
 **/src/generated/**/.cache/
 repo/
 !**/src/**/repo/
+/logs/*

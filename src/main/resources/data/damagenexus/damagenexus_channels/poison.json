@@ -1,0 +1,9 @@
+{
+  "channel": "damagenexus:poison",
+  "trigger_tags": [
+    "damagenexus:is_poison"
+  ],
+  "resistance_attribute": "damagenexus:resistance_poison",
+  "affected_by_armor": false,
+  "priority": 90
+}

@@ -1,0 +1,10 @@
+{
+  "channel": "damagenexus:magic",
+  "trigger_tags": [
+    "damagenexus:is_magic",
+    "damagenexus:is_spell"
+  ],
+  "resistance_attribute": "damagenexus:resistance_magic",
+  "affected_by_armor": false,
+  "priority": 80
+}

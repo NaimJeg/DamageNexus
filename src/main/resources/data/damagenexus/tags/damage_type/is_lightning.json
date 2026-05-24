@@ -1,0 +1,10 @@
+{
+  "replace": false,
+  "values": [
+    "#minecraft:is_lightning",
+    {
+      "id": "minecraft:lightning_bolt",
+      "required": false
+    }
+  ]
+}

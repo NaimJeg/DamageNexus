@@ -1,0 +1,9 @@
+{
+  "channel": "damagenexus:kinetic",
+  "trigger_tags": [
+    "damagenexus:is_kinetic"
+  ],
+  "resistance_attribute": "damagenexus:resistance_kinetic",
+  "affected_by_armor": true,
+  "priority": 60
+}

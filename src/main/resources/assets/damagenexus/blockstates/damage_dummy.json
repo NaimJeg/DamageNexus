@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "damagenexus:block/damage_dummy"
+    },
+    "facing=east": {
+      "model": "damagenexus:block/damage_dummy",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "damagenexus:block/damage_dummy",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "damagenexus:block/damage_dummy",
+      "y": 270
+    }
+  }
+}

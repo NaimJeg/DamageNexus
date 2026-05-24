@@ -1,0 +1,9 @@
+{
+  "channel": "damagenexus:fire",
+  "trigger_tags": [
+    "damagenexus:is_fire"
+  ],
+  "resistance_attribute": "damagenexus:resistance_fire",
+  "affected_by_armor": false,
+  "priority": 100
+}

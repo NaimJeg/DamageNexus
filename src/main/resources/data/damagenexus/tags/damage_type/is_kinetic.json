@@ -1,0 +1,7 @@
+{
+  "replace": false,
+  "values": [
+    "#damagenexus:is_spear_attack",
+    "#minecraft:mace_smash"
+  ]
+}

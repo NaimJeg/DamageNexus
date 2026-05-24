@@ -1,0 +1,9 @@
+{
+  "channel": "damagenexus:wither",
+  "trigger_tags": [
+    "damagenexus:is_wither"
+  ],
+  "resistance_attribute": "damagenexus:resistance_wither",
+  "affected_by_armor": false,
+  "priority": 90
+}

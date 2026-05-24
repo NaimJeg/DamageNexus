@@ -27,25 +27,25 @@ displayName="${mod_name}" #mandatory
 #updateJSONURL="https://change.me.example.invalid/updates.json" #optional
 
 # A URL for the "homepage" for this mod, displayed in the mod UI
-#displayURL="https://change.me.to.your.mods.homepage.example.invalid/" #optional
+displayURL="https://github.com/NaimJeg/DamageNexus-NeoForge26.1.2" #optional
 
 # A file name (in the root of the mod JAR) containing a logo for display
-#logoFile="examplemod.png" #optional
+logoFile="icon.png" #optional
 
 # A text field displayed in the mod UI
 #credits="" #optional
 
 # The authors of the mod, displayed in the mod UI (optional)
-#authors=""
+authors="NaimJeg"
 
 # The description text for the mod (multi line!) (#mandatory)
 description='''
-Example mod description.
+Intercept and replace vanilla damage.
 '''
 
 # The [[mixins]] block allows you to declare your mixin config to FML so that it gets loaded.
-#[[mixins]]
-#config="${mod_id}.mixins.json"
+[[mixins]]
+config="${mod_id}.mixins.json"
 
 # The [[accessTransformers]] block allows you to declare where your AT file is.
 # If this block is omitted, a fallback attempt will be made to load an AT from META-INF/accesstransformer.cfg

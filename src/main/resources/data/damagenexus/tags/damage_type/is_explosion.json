@@ -1,0 +1,14 @@
+{
+  "replace": false,
+  "values": [
+    "#minecraft:is_explosion",
+    {
+      "id": "minecraft:explosion",
+      "required": false
+    },
+    {
+      "id": "minecraft:player_explosion",
+      "required": false
+    }
+  ]
+}

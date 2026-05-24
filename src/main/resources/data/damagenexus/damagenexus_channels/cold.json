@@ -1,0 +1,9 @@
+{
+  "channel": "damagenexus:cold",
+  "trigger_tags": [
+    "damagenexus:is_cold"
+  ],
+  "resistance_attribute": "damagenexus:resistance_cold",
+  "affected_by_armor": false,
+  "priority": 100
+}

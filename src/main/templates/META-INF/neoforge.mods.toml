@@ -40,7 +40,8 @@ authors="NaimJeg"
 
 # The description text for the mod (multi line!) (#mandatory)
 description='''
-Intercept and replace vanilla damage.
+A data-driven damage framework for NeoForge that integrates with vanilla combat and exposes extensible channels, rules, attribution, and settlement APIs.
+面向 NeoForge 的数据驱动伤害框架，与原版战斗流程集成，并提供可扩展的伤害频道、规则、来源归属与结算 API。
 '''
 
 # The [[mixins]] block allows you to declare your mixin config to FML so that it gets loaded.

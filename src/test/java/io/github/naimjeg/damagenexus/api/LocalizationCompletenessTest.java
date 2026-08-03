@@ -1,9 +1,12 @@
-package io.github.naimjeg.damagenexus.api;
+package io.github.naimjeg.damagenexus.client.tooltip;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import io.github.naimjeg.damagenexus.api.critical.*;
+import io.github.naimjeg.damagenexus.api.DamageNexusAttributes;
+import io.github.naimjeg.damagenexus.api.client.phrase.PhraseForm;
+import io.github.naimjeg.damagenexus.api.client.phrase.RulePhraseRegistry;
 import io.github.naimjeg.damagenexus.api.damage.DamageFailureReason;
 import io.github.naimjeg.damagenexus.api.damage.DamageRequestKind;
 import io.github.naimjeg.damagenexus.api.rule.DamageNexusConditionIds;
@@ -25,7 +28,8 @@ import static org.junit.jupiter.api.Assertions.*;
 class LocalizationCompletenessTest {
     private static final Pattern KEY = Pattern.compile(
             "(?m)^\\s*\"((?:\\\\.|[^\"])*)\"\\s*:");
-    private static final Pattern FORMAT = Pattern.compile("%(?:\\d+\\$)?[sdf]");
+    private static final Pattern FORMAT = Pattern.compile("%(\\d+)\\$[sdf]");
+    private static final Pattern UNINDEXED_FORMAT = Pattern.compile("%(?!\\d+\\$)[sdf]");
 
     @Test
     void languageFilesAreStrictUtf8FlatJsonWithMatchingCompleteKeys() throws Exception {
@@ -35,8 +39,10 @@ class LocalizationCompletenessTest {
         assertFalse(en.source.contains("\uFFFD"));
         assertFalse(zh.source.contains("\uFFFD"));
         for (String key : en.values.keySet()) {
-            assertEquals(formatCount(en.values.get(key)),
-                    formatCount(zh.values.get(key)), key);
+            assertEquals(formatIndexes(en.values.get(key)),
+                    formatIndexes(zh.values.get(key)), key);
+            assertFalse(UNINDEXED_FORMAT.matcher(en.values.get(key)).find(), key);
+            assertFalse(UNINDEXED_FORMAT.matcher(zh.values.get(key)).find(), key);
             if (requiresTranslation(key)
                     && en.values.get(key).matches(".*[A-Za-z]{2,}.*")) {
                 assertNotEquals(en.values.get(key), zh.values.get(key), key);
@@ -59,15 +65,46 @@ class LocalizationCompletenessTest {
                 : CriticalDecisionContributionResult.values()) {
             assertTrue(en.values.containsKey(value.translationKey()));
         }
-        for (Identifier id : identifiers(DamageNexusConditionIds.class)) {
-            assertTrue(en.values.containsKey("condition.damagenexus." + id.getPath()),
-                    id.toString());
+        RulePhraseRegistry registry = new RulePhraseRegistry();
+        DamageNexusRulePhraseBootstrap.register(registry);
+        for (var schema : registry.schemas()) {
+            Set<Integer> expected = new LinkedHashSet<>();
+            for (int index = 1; index <= schema.slots().size(); index++) {
+                expected.add(index);
+            }
+            for (var variant : schema.variants()) {
+                for (PhraseForm form : PhraseForm.values()) {
+                    String key = schema.type().translationKey(variant, form);
+                    assertTrue(en.values.containsKey(key), key);
+                    assertEquals(expected, formatIndexes(en.values.get(key)), key);
+                }
+            }
         }
-        for (Identifier id : identifiers(DamageNexusOperationIds.class)) {
-            assertTrue(en.values.containsKey("operation.damagenexus.normal." + id.getPath()),
-                    id.toString());
-            assertTrue(en.values.containsKey("operation.damagenexus.detail." + id.getPath()),
-                    id.toString());
+        assertEquals(Set.of(1, 2), formatIndexes(
+                en.values.get("rule_sentence.damagenexus.conditional.single")
+        ));
+        for (net.minecraft.world.entity.MobCategory category
+                : net.minecraft.world.entity.MobCategory.values()) {
+            assertTrue(en.values.containsKey(
+                    "mob_category.damagenexus." + category.getSerializedName()
+            ));
+        }
+        assertEquals("Affix", en.values.get("source_kind.damagenexus.affix"));
+        assertEquals("词缀", zh.values.get("source_kind.damagenexus.affix"));
+        assertEquals("Entry", en.values.get("source_kind.damagenexus.entry"));
+        assertEquals("条目", zh.values.get("source_kind.damagenexus.entry"));
+
+        Pattern commandKey = Pattern.compile("\"(command\\.damagenexus\\.[a-z0-9_.]+)\"");
+        try (var paths = Files.walk(Path.of(
+                "src/main/java/io/github/naimjeg/damagenexus/command"
+        ))) {
+            for (Path source : paths.filter(path -> path.toString().endsWith(".java")).toList()) {
+                Matcher matcher = commandKey.matcher(Files.readString(source));
+                while (matcher.find()) {
+                    assertTrue(en.values.containsKey(matcher.group(1)),
+                            source + ": " + matcher.group(1));
+                }
+            }
         }
         for (Field field : DamageNexusAttributes.class.getFields()) {
             if (Modifier.isStatic(field.getModifiers())) {
@@ -77,8 +114,6 @@ class LocalizationCompletenessTest {
             }
         }
         for (String key : List.of(
-                "tooltip.damagenexus.template.entry_reference",
-                "tooltip.damagenexus.template.affix_reference",
                 "template.damagenexus.entry_reference",
                 "template.damagenexus.affix_reference",
                 "template.damagenexus.revision",
@@ -126,18 +161,16 @@ class LocalizationCompletenessTest {
         return ids;
     }
 
-    private static int formatCount(String text) {
-        int count = 0;
+    private static Set<Integer> formatIndexes(String text) {
+        Set<Integer> indexes = new LinkedHashSet<>();
         Matcher matcher = FORMAT.matcher(text);
-        while (matcher.find()) count++;
-        return count;
+        while (matcher.find()) indexes.add(Integer.parseInt(matcher.group(1)));
+        return indexes;
     }
 
     private static boolean requiresTranslation(String key) {
         return key.startsWith("attribute.")
-                || key.startsWith("condition.")
-                || key.startsWith("operation.damagenexus.normal.")
-                || key.startsWith("operation.damagenexus.detail.")
+                || key.startsWith("rule_phrase.")
                 || key.startsWith("damage_request_kind.")
                 || key.startsWith("damagenexus.damage_request.failure.")
                 || key.startsWith("critical_")

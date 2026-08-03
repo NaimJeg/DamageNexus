@@ -4,6 +4,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import io.github.naimjeg.damagenexus.command.test.TestTargetSelector;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.LivingEntity;
 
 public final class DamageBypassCommands {
@@ -20,13 +21,13 @@ public final class DamageBypassCommands {
                         .executes(ctx -> bypassHealthDelta(
                                 ctx.getSource(),
                                 -4.0f,
-                                "direct health -4"
+                                "command.damagenexus.bypass.direct_health"
                         )))
                 .then(Commands.literal("absorption_minus_4")
                         .executes(ctx -> bypassAbsorptionDelta(
                                 ctx.getSource(),
                                 -4.0f,
-                                "direct absorption -4"
+                                "command.damagenexus.bypass.direct_absorption"
                         ))));
     }
 
@@ -40,7 +41,7 @@ public final class DamageBypassCommands {
         if (target == null) {
             return CommandFeedback.fail(
                     source,
-                    "no nearby [DN-Test] living target found."
+                    "command.damagenexus.target_not_found"
             );
         }
 
@@ -54,7 +55,8 @@ public final class DamageBypassCommands {
 
         return CommandFeedback.success(
                 source,
-                label + " applied. health " + before + " -> " + after
+                "command.damagenexus.bypass.health_applied",
+                Component.translatable(label), before, after
         );
     }
 
@@ -68,7 +70,7 @@ public final class DamageBypassCommands {
         if (target == null) {
             return CommandFeedback.fail(
                     source,
-                    "no nearby [DN-Test] living target found."
+                    "command.damagenexus.target_not_found"
             );
         }
 
@@ -79,7 +81,8 @@ public final class DamageBypassCommands {
 
         return CommandFeedback.success(
                 source,
-                label + " applied. absorption " + before + " -> " + after
+                "command.damagenexus.bypass.absorption_applied",
+                Component.translatable(label), before, after
         );
     }
 }

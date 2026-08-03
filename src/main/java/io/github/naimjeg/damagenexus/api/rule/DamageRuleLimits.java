@@ -468,35 +468,11 @@ public final class DamageRuleLimits {
             return Optional.of("display_text_is_null");
         }
 
-        if (text.args().size() > MAX_TRANSLATION_ARGS) {
-            return Optional.of(
-                    "translation_arg_count=" + text.args().size()
-                            + " maximum=" + MAX_TRANSLATION_ARGS
-            );
-        }
-
-        List<String> values = new ArrayList<>();
-        text.translate().ifPresent(values::add);
-        text.text().ifPresent(values::add);
-        text.fallback().ifPresent(values::add);
-        values.addAll(text.args());
-
-        for (String value : values) {
-            if (value != null
-                    && codePointLength(value)
-                    > MAX_DISPLAY_CODE_POINTS) {
-                return Optional.of(
-                        "display_string_too_long maximum="
-                                + MAX_DISPLAY_CODE_POINTS
-                );
-            }
-        }
-
-        return Optional.empty();
+        return DisplayText.validationProblem(text);
     }
 
     private static Optional<String> findDisplayProblem(
-            DisplayText name,
+            Optional<DisplayText> name,
             List<DisplayText> tooltip,
             Optional<DisplayText> flavor
     ) {
@@ -511,10 +487,14 @@ public final class DamageRuleLimits {
             );
         }
 
-        Optional<String> nameProblem = findDisplayTextProblem(name);
-
-        if (nameProblem.isPresent()) {
-            return nameProblem;
+        if (name == null) {
+            return Optional.of("display_name_optional_is_null");
+        }
+        if (name.isPresent()) {
+            Optional<String> nameProblem = findDisplayTextProblem(name.get());
+            if (nameProblem.isPresent()) {
+                return nameProblem;
+            }
         }
 
         for (DisplayText line : tooltip) {
@@ -615,31 +595,29 @@ public final class DamageRuleLimits {
             return total;
         }
 
-        if (text.translate().isPresent()) {
-            total += codePointLength(text.translate().get());
-        }
-
-        if (text.text().isPresent()) {
-            total += codePointLength(text.text().get());
-        }
-
-        if (text.fallback().isPresent()) {
-            total += codePointLength(text.fallback().get());
-        }
-
-        for (String argument : text.args()) {
-            total += codePointLength(argument);
+        switch (text) {
+            case DisplayText.Literal literal ->
+                    total += codePointLength(literal.text());
+            case DisplayText.Translatable translatable -> {
+                total += codePointLength(translatable.key());
+                if (translatable.fallback().isPresent()) {
+                    total += codePointLength(translatable.fallback().get());
+                }
+                for (String argument : translatable.args()) {
+                    total += codePointLength(argument);
+                }
+            }
         }
 
         return total;
     }
 
     private static long displayCodePoints(
-            DisplayText name,
+            Optional<DisplayText> name,
             List<DisplayText> tooltip,
             Optional<DisplayText> flavor
     ) {
-        long total = displayCodePoints(name);
+        long total = name.map(DamageRuleLimits::displayCodePoints).orElse(0L);
 
         for (DisplayText line : tooltip) {
             total += displayCodePoints(line);
@@ -1134,7 +1112,7 @@ public final class DamageRuleLimits {
         }
 
         private Optional<String> addDisplay(
-                DisplayText name,
+                Optional<DisplayText> name,
                 List<DisplayText> tooltip,
                 Optional<DisplayText> flavor
         ) {

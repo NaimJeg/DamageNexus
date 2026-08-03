@@ -91,11 +91,11 @@ final class DamageCommandSecurity {
     enum ExpensiveAction {
         SPAWN_ENTITIES(
                 20,
-                "entity generation is limited to once per second."
+                "command.damagenexus.cooldown.spawn_entities"
         ),
         CLEANUP(
                 100,
-                "cleanup is limited to once every five seconds."
+                "command.damagenexus.cooldown.cleanup"
         );
 
         private final int cooldownTicks;

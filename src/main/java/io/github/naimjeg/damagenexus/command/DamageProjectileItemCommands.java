@@ -38,7 +38,7 @@ public final class DamageProjectileItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "power bow and arrows granted."
+                "command.damagenexus.items_created", 2
         );
     }
 
@@ -48,7 +48,7 @@ public final class DamageProjectileItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "projectile rule bow and arrows granted."
+                "command.damagenexus.items_created", 2
         );
     }
 
@@ -59,7 +59,7 @@ public final class DamageProjectileItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "crossbow kit granted."
+                "command.damagenexus.items_created", 3
         );
     }
 
@@ -69,7 +69,7 @@ public final class DamageProjectileItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "projectile rule crossbow and arrows granted."
+                "command.damagenexus.items_created", 2
         );
     }
 
@@ -79,7 +79,7 @@ public final class DamageProjectileItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "trident kit granted."
+                "command.damagenexus.items_created", 2
         );
     }
 
@@ -88,7 +88,7 @@ public final class DamageProjectileItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "projectile rule trident granted."
+                "command.damagenexus.items_created", 1
         );
     }
 
@@ -108,7 +108,7 @@ public final class DamageProjectileItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "projectile source kit granted."
+                "command.damagenexus.items_created", 9
         );
     }
 

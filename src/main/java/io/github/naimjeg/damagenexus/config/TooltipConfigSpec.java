@@ -15,8 +15,8 @@ public final class TooltipConfigSpec {
                 .comment(
                         "Controls DamageNexus debug information shown in item tooltips.",
                         "OFF: no debug tooltip sections.",
-                        "AFFIX_SUMMARY: show affix-level debug sections only.",
-                        "AFFIX_AND_RULES: show affixes and contained rule ids.",
+                        "SUMMARY: show top-level source counts.",
+                        "STRUCTURE: show affix, entry, rule and augmentation hierarchy.",
                         "FULL: show full debug details.",
                         "Default: OFF"
                 )

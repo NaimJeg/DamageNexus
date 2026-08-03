@@ -1,20 +1,30 @@
 package io.github.naimjeg.damagenexus.client.tooltip;
 
+import io.github.naimjeg.damagenexus.api.client.phrase.RegisterRulePhrasesEvent;
+import io.github.naimjeg.damagenexus.api.client.phrase.RulePhraseRegistry;
+import net.neoforged.neoforge.common.NeoForge;
+
 public final class DamageNexusClientTooltips {
 
-    private static boolean registered = false;
+    private static volatile RulePhraseRegistry registry;
 
     private DamageNexusClientTooltips() {
     }
 
-    public static void register() {
-        if (registered) {
+    public static synchronized void register() {
+        if (registry != null) {
             return;
         }
 
-        DefaultConditionTooltips.register();
-        DefaultOperationTooltips.register();
+        RulePhraseRegistry building = new RulePhraseRegistry();
+        DamageNexusRulePhraseBootstrap.register(building);
+        NeoForge.EVENT_BUS.post(new RegisterRulePhrasesEvent(building));
+        building.freeze();
+        registry = building;
+    }
 
-        registered = true;
+    public static RulePhraseRegistry registry() {
+        register();
+        return registry;
     }
 }

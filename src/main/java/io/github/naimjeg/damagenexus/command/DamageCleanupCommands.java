@@ -47,7 +47,7 @@ public final class DamageCleanupCommands {
 
         return CommandFeedback.success(
                 source,
-                "test entities cleaned up."
+                "command.damagenexus.cleanup_complete"
         );
     }
 }

@@ -1,64 +1,47 @@
 package io.github.naimjeg.damagenexus.client.tooltip;
 
 import io.github.naimjeg.damagenexus.api.display.DisplayText;
+import net.minecraft.locale.Language;
 import net.minecraft.network.chat.Component;
 
 import java.util.Optional;
 
 public final class DisplayTextResolver {
-
     private DisplayTextResolver() {
     }
 
     public static Component resolve(DisplayText text) {
-        if (text == null || text.isBlank()) {
+        if (text == null) {
             return Component.empty();
         }
-
-        if (text.translate().isPresent()) {
-            String key = text.translate().get();
-
-            Object[] args = text.args()
-                    .stream()
-                    .map(Component::literal)
-                    .toArray(Object[]::new);
-
-            if (text.fallback().isPresent()) {
-                return Component.translatableWithFallback(
-                        key,
-                        text.fallback().get(),
-                        args
-                );
+        return switch (text) {
+            case DisplayText.Literal literal -> Component.literal(literal.text());
+            case DisplayText.Translatable translatable -> {
+                Object[] arguments = translatable.args().stream()
+                        .map(Component::literal)
+                        .toArray(Object[]::new);
+                if (!Language.getInstance().has(translatable.key())
+                        && translatable.fallback().isEmpty()) {
+                    yield Component.translatable(
+                            "tooltip.damagenexus.unlocalized_display_text"
+                    );
+                }
+                yield translatable.fallback().isPresent()
+                        ? Component.translatableWithFallback(
+                                translatable.key(),
+                                translatable.fallback().get(),
+                                arguments
+                        )
+                        : Component.translatable(translatable.key(), arguments);
             }
-
-            return Component.translatable(key, args);
-        }
-
-        return Component.literal(
-                text.text()
-                        .or(text::fallback)
-                        .orElse("")
-        );
+        };
     }
 
-    public static Optional<Component> resolveOptional(
-            Optional<DisplayText> text
-    ) {
-        if (text == null || text.isEmpty() || text.get().isBlank()) {
-            return Optional.empty();
-        }
-
-        return Optional.of(resolve(text.get()));
+    public static Optional<Component> resolveOptional(Optional<DisplayText> text) {
+        return text == null ? Optional.empty() : text.map(DisplayTextResolver::resolve);
     }
 
     public static String debugString(DisplayText text) {
-        if (text == null) {
-            return "";
-        }
-
-        return text.text()
-                .or(text::fallback)
-                .or(text::translate)
-                .orElse("");
+        return text == null ? "" : text.debugString();
     }
 }

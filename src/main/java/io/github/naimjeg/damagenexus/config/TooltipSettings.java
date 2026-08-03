@@ -14,14 +14,14 @@ public record TooltipSettings(
     public boolean showAffixDebugTooltips() {
         return switch (debugLevel) {
             case OFF -> false;
-            case AFFIX_SUMMARY, AFFIX_AND_RULES, FULL -> true;
+            case SUMMARY, STRUCTURE, FULL -> true;
         };
     }
 
     public boolean showRuleDebugTooltips() {
         return switch (debugLevel) {
-            case OFF, AFFIX_SUMMARY -> false;
-            case AFFIX_AND_RULES, FULL -> true;
+            case OFF, SUMMARY -> false;
+            case STRUCTURE, FULL -> true;
         };
     }
 

@@ -406,7 +406,7 @@ class DamageNexusComponentBudgetTest {
         return new DamageEntryDefinition(
                 id(path),
                 new DamageEntryDisplay(
-                        DisplayText.EMPTY,
+                        Optional.empty(),
                         lines,
                         Optional.empty(),
                         false

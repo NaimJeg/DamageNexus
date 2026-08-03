@@ -1,60 +1,55 @@
 package io.github.naimjeg.damagenexus.client.tooltip;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
+import io.github.naimjeg.damagenexus.api.client.phrase.NumberValue;
+import io.github.naimjeg.damagenexus.api.client.phrase.PercentValue;
+import io.github.naimjeg.damagenexus.client.tooltip.document.VanillaTooltipNote;
 
-import java.util.Locale;
+import java.util.List;
 
 public final class VanillaEnchantmentTooltipLines {
-
     private VanillaEnchantmentTooltipLines() {
     }
 
-    public static MutableComponent featherFallingEpf(float epf) {
-        return Component.translatable(
+    public static VanillaTooltipNote featherFallingEpf(float epf) {
+        return note(
                 "tooltip.damagenexus.vanilla_enchantment.feather_falling.epf",
-                number(epf)
+                new NumberValue(epf)
         );
     }
 
-    public static MutableComponent featherFallingResistance(float rating) {
-        return Component.translatable(
+    public static VanillaTooltipNote featherFallingResistance(float rating) {
+        return note(
                 "tooltip.damagenexus.vanilla_enchantment.feather_falling.resistance",
-                number(rating)
+                new NumberValue(rating)
         );
     }
 
-    public static MutableComponent breachReduction(float reduction) {
-        return Component.translatable(
+    public static VanillaTooltipNote breachReduction(float reduction) {
+        return note(
                 "tooltip.damagenexus.vanilla_enchantment.breach.reduction",
-                percent(reduction)
+                new PercentValue(reduction)
         );
     }
 
-    public static MutableComponent powerFormula() {
-        return Component.translatable(
-                "tooltip.damagenexus.vanilla_enchantment.power.formula"
-        );
+    public static VanillaTooltipNote powerFormula() {
+        return note("tooltip.damagenexus.vanilla_enchantment.power.formula");
     }
 
-    public static MutableComponent densityPerBlock(float damagePerBlock) {
-        return Component.translatable(
+    public static VanillaTooltipNote densityPerBlock(float damagePerBlock) {
+        return note(
                 "tooltip.damagenexus.vanilla_enchantment.density.per_block",
-                number(damagePerBlock)
+                new NumberValue(damagePerBlock)
         );
     }
 
-    public static MutableComponent densityFormula() {
-        return Component.translatable(
-                "tooltip.damagenexus.vanilla_enchantment.density.formula"
-        );
+    public static VanillaTooltipNote densityFormula() {
+        return note("tooltip.damagenexus.vanilla_enchantment.density.formula");
     }
 
-    private static String number(float value) {
-        return String.format(Locale.ROOT, "%.2f", value);
-    }
-
-    private static String percent(float value) {
-        return String.format(Locale.ROOT, "%.0f%%", value * 100.0f);
+    private static VanillaTooltipNote note(
+            String key,
+            io.github.naimjeg.damagenexus.api.client.phrase.PhraseValue... arguments
+    ) {
+        return new VanillaTooltipNote(key, List.of(arguments));
     }
 }

@@ -9,14 +9,14 @@ import java.util.List;
 import java.util.Optional;
 
 public record DamageAffixDisplay(
-        DisplayText name,
+        Optional<DisplayText> name,
         List<DisplayText> tooltip,
         Optional<DisplayText> flavorText,
         boolean showRuleBreakdown
 ) {
     public static final DamageAffixDisplay EMPTY =
             new DamageAffixDisplay(
-                    DisplayText.EMPTY,
+                    Optional.empty(),
                     List.of(),
                     Optional.empty(),
                     false
@@ -25,7 +25,7 @@ public record DamageAffixDisplay(
     public static final Codec<DamageAffixDisplay> CODEC =
             RecordCodecBuilder.create(instance -> instance.group(
                     DisplayText.CODEC
-                            .fieldOf("name")
+                            .optionalFieldOf("name")
                             .forGetter(DamageAffixDisplay::name),
 
                     DamageRuleLimits.boundedList(
@@ -46,14 +46,24 @@ public record DamageAffixDisplay(
             ).apply(instance, DamageAffixDisplay::new));
 
     public DamageAffixDisplay {
-        name = name == null ? DisplayText.EMPTY : name;
+        name = name == null ? Optional.empty() : name;
         tooltip = tooltip == null ? List.of() : List.copyOf(tooltip);
         flavorText = flavorText == null ? Optional.empty() : flavorText;
     }
 
     public boolean hasVisibleText() {
-        return !name.isBlank()
+        return name.isPresent()
                 || !tooltip.isEmpty()
-                || flavorText.filter(text -> !text.isBlank()).isPresent();
+                || flavorText.isPresent()
+                || showRuleBreakdown;
+    }
+
+    public DamageAffixDisplay(
+            DisplayText name,
+            List<DisplayText> tooltip,
+            Optional<DisplayText> flavorText,
+            boolean showRuleBreakdown
+    ) {
+        this(Optional.ofNullable(name), tooltip, flavorText, showRuleBreakdown);
     }
 }

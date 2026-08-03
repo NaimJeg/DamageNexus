@@ -79,18 +79,21 @@ public final class DamageItemCommands {
     }
 
     private static int giveAllItems(CommandSourceStack source) {
-        giveBaseKit(source);
-        giveEnchantKit(source);
-        giveCritKit(source);
-        giveChannelKit(source);
-        giveProjectileKit(source);
-        giveOperationKit(source);
-        giveEntryProbeKit(source);
-        giveAffixKit(source);
+        CommandFeedback.withSuppressedSuccess(() -> {
+            giveBaseKit(source);
+            giveEnchantKit(source);
+            giveCritKit(source);
+            giveChannelKit(source);
+            giveProjectileKit(source);
+            giveOperationKit(source);
+            giveEntryProbeKit(source);
+            giveAffixKit(source);
+            return 1;
+        });
 
         return CommandFeedback.success(
                 source,
-                "all test items granted."
+                "command.damagenexus.items_created", 27
         );
     }
 
@@ -100,7 +103,7 @@ public final class DamageItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "base kit granted."
+                "command.damagenexus.items_created", 2
         );
     }
 
@@ -109,7 +112,7 @@ public final class DamageItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "sharpness test sword granted."
+                "command.damagenexus.items_created", 1
         );
     }
 
@@ -118,7 +121,7 @@ public final class DamageItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "smite test sword granted."
+                "command.damagenexus.items_created", 1
         );
     }
 
@@ -127,7 +130,7 @@ public final class DamageItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "bane test sword granted."
+                "command.damagenexus.items_created", 1
         );
     }
 
@@ -138,7 +141,7 @@ public final class DamageItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "enchantment kit granted."
+                "command.damagenexus.items_created", 3
         );
     }
 
@@ -147,7 +150,7 @@ public final class DamageItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "physical scaling test sword granted."
+                "command.damagenexus.items_created", 1
         );
     }
 
@@ -156,7 +159,7 @@ public final class DamageItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "flat fire test sword granted."
+                "command.damagenexus.items_created", 1
         );
     }
 
@@ -166,7 +169,7 @@ public final class DamageItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "channel kit granted."
+                "command.damagenexus.items_created", 2
         );
     }
 
@@ -175,7 +178,7 @@ public final class DamageItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "crit kit granted."
+                "command.damagenexus.items_created", 1
         );
     }
 
@@ -184,7 +187,7 @@ public final class DamageItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "blazing edge affix sword granted."
+                "command.damagenexus.items_created", 1
         );
     }
 
@@ -196,7 +199,7 @@ public final class DamageItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "affix test kit granted."
+                "command.damagenexus.items_created", 4
         );
     }
 
@@ -205,7 +208,7 @@ public final class DamageItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "convert/gain operation item granted."
+                "command.damagenexus.items_created", 1
         );
     }
 
@@ -214,7 +217,7 @@ public final class DamageItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "defensive operation item granted."
+                "command.damagenexus.items_created", 1
         );
     }
 
@@ -223,7 +226,7 @@ public final class DamageItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "final override operation item granted."
+                "command.damagenexus.items_created", 1
         );
     }
 
@@ -232,7 +235,7 @@ public final class DamageItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "multiplier operation item granted."
+                "command.damagenexus.items_created", 1
         );
     }
 
@@ -244,7 +247,7 @@ public final class DamageItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "operation test kit granted."
+                "command.damagenexus.items_created", 4
         );
     }
 
@@ -264,7 +267,7 @@ public final class DamageItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "projectile source kit granted."
+                "command.damagenexus.items_created", 9
         );
     }
 
@@ -274,7 +277,7 @@ public final class DamageItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "DamageNexus entry stacking probe kit generated."
+                "command.damagenexus.items_created", 2
         );
     }
 
@@ -283,7 +286,7 @@ public final class DamageItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "entry unique-group probe granted."
+                "command.damagenexus.items_created", 1
         );
     }
 
@@ -292,7 +295,7 @@ public final class DamageItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "entry replace probe granted."
+                "command.damagenexus.items_created", 1
         );
     }
 
@@ -301,7 +304,7 @@ public final class DamageItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "affix unique-group probe granted."
+                "command.damagenexus.items_created", 1
         );
     }
 
@@ -310,7 +313,7 @@ public final class DamageItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "affix replace probe granted."
+                "command.damagenexus.items_created", 1
         );
     }
 
@@ -319,7 +322,7 @@ public final class DamageItemCommands {
 
         return CommandFeedback.success(
                 source,
-                "affix highest-level probe granted."
+                "command.damagenexus.items_created", 1
         );
     }
 

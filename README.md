@@ -362,3 +362,42 @@ validation can traverse their immutable children.
 ## Purpose
 
 DamageNexus is primarily an infrastructure mod for mod developers and modpack authors. It provides a common system for implementing custom damage mechanics without requiring every mod to replace or independently reproduce Minecraft's damage logic.
+
+## Client rule phrases
+
+Rule tooltips are client-side semantic descriptions. A condition or operation
+provider returns a typed `RulePhrase`; it never creates or concatenates a
+Minecraft `Component`. Register providers while `RegisterRulePhrasesEvent` is
+being dispatched on the NeoForge event bus. The registry freezes when that
+event returns.
+
+An operation from another mod can reuse a DamageNexus phrase type without
+registering new language grammar:
+
+```java
+@SubscribeEvent
+public static void registerRulePhrases(RegisterRulePhrasesEvent event) {
+    event.registerOperation(
+            ExampleOperation.TYPE,
+            ExampleOperation.class,
+            (operation, phrases) -> phrases.create(
+                    DamageNexusRulePhrases.CHANGE_CHANNEL_DAMAGE,
+                    operation.amount() < 0
+                            ? PhraseVariant.DECREASE
+                            : PhraseVariant.INCREASE,
+                    PhraseArguments.builder()
+                            .put(DamageNexusRulePhrases.CHANNEL,
+                                    new ChannelValue(operation.channel()))
+                            .put(DamageNexusRulePhrases.PERCENT,
+                                    new PercentValue(Math.abs(operation.amount())))
+                            .build()
+            )
+    );
+}
+```
+
+For genuinely new semantics, register one `RulePhraseSchema` before its
+providers and supply both compact and detail resource keys in every supported
+language using
+`rule_phrase.<namespace>.<type>.<variant>.<form>`. Slot order defines the
+indexed template arguments; language files own all word order.

@@ -106,25 +106,31 @@ public final class DamageTestCommands {
     }
 
     private static int runAll(CommandSourceStack source) {
-        spawnAllTargets(source);
-        spawnBridgeTargets(source);
+        CommandFeedback.withSuppressedSuccess(() -> {
+            spawnAllTargets(source);
+            spawnBridgeTargets(source);
+            return 1;
+        });
 
         return CommandFeedback.success(
                 source,
-                "all DamageNexus test targets generated."
+                "command.damagenexus.targets_created", 25
         );
     }
 
     private static int spawnAllTargets(CommandSourceStack source) {
-        spawnDefenseTargets(source);
-        spawnEnchantTargets(source);
-        spawnEffectTargets(source);
-        spawnInvulTargets(source);
-        spawnEnvironmentalTargets(source);
+        CommandFeedback.withSuppressedSuccess(() -> {
+            spawnDefenseTargets(source);
+            spawnEnchantTargets(source);
+            spawnEffectTargets(source);
+            spawnInvulTargets(source);
+            spawnEnvironmentalTargets(source);
+            return 1;
+        });
 
         return CommandFeedback.success(
                 source,
-                "all basic test targets generated."
+                "command.damagenexus.targets_created", 16
         );
     }
 
@@ -179,7 +185,7 @@ public final class DamageTestCommands {
 
         return CommandFeedback.success(
                 source,
-                "defense targets generated."
+                "command.damagenexus.targets_created", 5
         );
     }
 
@@ -210,7 +216,7 @@ public final class DamageTestCommands {
 
         return CommandFeedback.success(
                 source,
-                "enchantment bridge targets generated."
+                "command.damagenexus.targets_created", 3
         );
     }
 
@@ -267,7 +273,7 @@ public final class DamageTestCommands {
 
         return CommandFeedback.success(
                 source,
-                "mob effect targets generated."
+                "command.damagenexus.targets_created", 3
         );
     }
 
@@ -303,7 +309,7 @@ public final class DamageTestCommands {
 
         return CommandFeedback.success(
                 source,
-                "post classification targets generated."
+                "command.damagenexus.targets_created", 2
         );
     }
 
@@ -344,20 +350,23 @@ public final class DamageTestCommands {
 
         return CommandFeedback.success(
                 source,
-                "environmental damage targets generated."
+                "command.damagenexus.targets_created", 3
         );
     }
 
     private static int spawnBridgeTargets(CommandSourceStack source) {
-        spawnProjectileTargets(source);
-        spawnMaceTargets(source);
-        spawnSpearTargets(source);
-        spawnTridentTargets(source);
-        spawnMobDifficultyTargets(source);
+        CommandFeedback.withSuppressedSuccess(() -> {
+            spawnProjectileTargets(source);
+            spawnMaceTargets(source);
+            spawnSpearTargets(source);
+            spawnTridentTargets(source);
+            spawnMobDifficultyTargets(source);
+            return 1;
+        });
 
         return CommandFeedback.success(
                 source,
-                "bridge test targets generated."
+                "command.damagenexus.targets_created", 9
         );
     }
 
@@ -385,7 +394,7 @@ public final class DamageTestCommands {
 
         return CommandFeedback.success(
                 source,
-                "projectile bridge targets generated."
+                "command.damagenexus.targets_created", 2
         );
     }
 
@@ -413,7 +422,7 @@ public final class DamageTestCommands {
 
         return CommandFeedback.success(
                 source,
-                "trident projectile targets generated."
+                "command.damagenexus.targets_created", 2
         );
     }
 
@@ -441,7 +450,7 @@ public final class DamageTestCommands {
 
         return CommandFeedback.success(
                 source,
-                "mace bridge targets generated."
+                "command.damagenexus.targets_created", 2
         );
     }
 
@@ -469,7 +478,7 @@ public final class DamageTestCommands {
 
         return CommandFeedback.success(
                 source,
-                "spear bridge targets generated."
+                "command.damagenexus.targets_created", 2
         );
     }
 
@@ -482,7 +491,7 @@ public final class DamageTestCommands {
 
         return CommandFeedback.success(
                 source,
-                "mob difficulty attacker generated."
+                "command.damagenexus.targets_created", 1
         );
     }
 }

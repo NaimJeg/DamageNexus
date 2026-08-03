@@ -104,7 +104,7 @@ public final class DamageMobCommands {
 
         return CommandFeedback.success(
                 source,
-                "baseline mob generated."
+                "command.damagenexus.targets_created", 1
         );
     }
 
@@ -120,7 +120,7 @@ public final class DamageMobCommands {
 
         return CommandFeedback.success(
                 source,
-                "zombie generated."
+                "command.damagenexus.targets_created", 1
         );
     }
 
@@ -133,7 +133,7 @@ public final class DamageMobCommands {
 
         return CommandFeedback.success(
                 source,
-                "cow generated."
+                "command.damagenexus.targets_created", 1
         );
     }
 
@@ -146,7 +146,7 @@ public final class DamageMobCommands {
 
         return CommandFeedback.success(
                 source,
-                "spider generated."
+                "command.damagenexus.targets_created", 1
         );
     }
 
@@ -167,7 +167,7 @@ public final class DamageMobCommands {
 
         return CommandFeedback.success(
                 source,
-                "armored target generated."
+                "command.damagenexus.targets_created", 1
         );
     }
 
@@ -187,7 +187,7 @@ public final class DamageMobCommands {
 
         return CommandFeedback.success(
                 source,
-                "low HP target generated."
+                "command.damagenexus.targets_created", 1
         );
     }
 
@@ -207,7 +207,7 @@ public final class DamageMobCommands {
 
         return CommandFeedback.success(
                 source,
-                "invulnerability target generated."
+                "command.damagenexus.targets_created", 1
         );
     }
 }

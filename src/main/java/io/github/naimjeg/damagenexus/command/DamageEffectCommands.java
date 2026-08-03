@@ -50,7 +50,7 @@ public final class DamageEffectCommands {
         if (self == null) {
             return CommandFeedback.fail(
                     source,
-                    "this command must be run by a living entity."
+                    "command.damagenexus.living_entity_required"
             );
         }
 
@@ -64,7 +64,7 @@ public final class DamageEffectCommands {
 
         return CommandFeedback.success(
                 source,
-                "strength applied to self."
+                "command.damagenexus.effect.self_strength"
         );
     }
 
@@ -77,7 +77,7 @@ public final class DamageEffectCommands {
         if (self == null) {
             return CommandFeedback.fail(
                     source,
-                    "this command must be run by a living entity."
+                    "command.damagenexus.living_entity_required"
             );
         }
 
@@ -91,7 +91,7 @@ public final class DamageEffectCommands {
 
         return CommandFeedback.success(
                 source,
-                "weakness applied to self."
+                "command.damagenexus.effect.self_weakness"
         );
     }
 
@@ -101,7 +101,7 @@ public final class DamageEffectCommands {
         if (self == null) {
             return CommandFeedback.fail(
                     source,
-                    "this command must be run by a living entity."
+                    "command.damagenexus.living_entity_required"
             );
         }
 
@@ -109,7 +109,7 @@ public final class DamageEffectCommands {
 
         return CommandFeedback.success(
                 source,
-                "self effects cleared."
+                "command.damagenexus.effect.self_cleared"
         );
     }
 
@@ -133,7 +133,7 @@ public final class DamageEffectCommands {
 
         return CommandFeedback.success(
                 source,
-                "resistance applied to nearest test target."
+                "command.damagenexus.effect.target_resistance"
         );
     }
 
@@ -148,7 +148,7 @@ public final class DamageEffectCommands {
 
         return CommandFeedback.success(
                 source,
-                "nearest test target ignited."
+                "command.damagenexus.effect.target_ignited"
         );
     }
 
@@ -163,7 +163,7 @@ public final class DamageEffectCommands {
 
         return CommandFeedback.success(
                 source,
-                "nearest test target effects cleared."
+                "command.damagenexus.effect.target_cleared"
         );
     }
 
@@ -176,7 +176,7 @@ public final class DamageEffectCommands {
     private static int noTarget(CommandSourceStack source) {
         return CommandFeedback.fail(
                 source,
-                "no nearby [DN-Test] living target found."
+                "command.damagenexus.target_not_found"
         );
     }
 }

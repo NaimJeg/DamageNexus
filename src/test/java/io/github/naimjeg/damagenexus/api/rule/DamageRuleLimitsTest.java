@@ -606,25 +606,21 @@ class DamageRuleLimitsTest {
                         "arg"
                 ).toArray(String[]::new)
         );
-        DisplayText tooManyArgs = DisplayText.translatable(
-                "test.translation",
-                java.util.Collections.nCopies(
-                        DamageRuleLimits.MAX_TRANSLATION_ARGS + 1,
-                        "arg"
-                ).toArray(String[]::new)
-        );
-
         assertTrue(DisplayText.CODEC
                 .encodeStart(JsonOps.INSTANCE, argsAtLimit)
                 .result()
                 .isPresent());
-        assertTrue(DisplayText.CODEC
-                .encodeStart(JsonOps.INSTANCE, tooManyArgs)
-                .error()
-                .isPresent());
+        assertThrows(IllegalArgumentException.class, () ->
+                DisplayText.translatable(
+                        "test.translation",
+                        java.util.Collections.nCopies(
+                                DamageRuleLimits.MAX_TRANSLATION_ARGS + 1,
+                                "arg"
+                        ).toArray(String[]::new)
+                ));
 
         DamageEntryDisplay tooltipAtLimit = new DamageEntryDisplay(
-                DisplayText.EMPTY,
+                Optional.empty(),
                 java.util.Collections.nCopies(
                         DamageRuleLimits.MAX_TOOLTIP_LINES,
                         DisplayText.literal("line")
@@ -633,7 +629,7 @@ class DamageRuleLimitsTest {
                 false
         );
         DamageEntryDisplay tooltipOverLimit = new DamageEntryDisplay(
-                DisplayText.EMPTY,
+                Optional.empty(),
                 java.util.Collections.nCopies(
                         DamageRuleLimits.MAX_TOOLTIP_LINES + 1,
                         DisplayText.literal("line")
@@ -663,13 +659,8 @@ class DamageRuleLimitsTest {
                 )
                 .result()
                 .isPresent());
-        assertTrue(DisplayText.CODEC
-                .encodeStart(
-                        JsonOps.INSTANCE,
-                        DisplayText.literal(textOverLimit)
-                )
-                .error()
-                .isPresent());
+        assertThrows(IllegalArgumentException.class, () ->
+                DisplayText.literal(textOverLimit));
 
         DamageRuleDefinition huge = new DamageRuleDefinition(
                 id("huge_value"),

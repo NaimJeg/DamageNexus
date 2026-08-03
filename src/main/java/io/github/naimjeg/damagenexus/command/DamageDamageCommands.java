@@ -4,6 +4,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import io.github.naimjeg.damagenexus.command.test.TestTargetSelector;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
@@ -24,7 +25,7 @@ public final class DamageDamageCommands {
                                 level -> level.damageSources().lava(),
                                 4.0f,
                                 1,
-                                "lava damage x1"
+                                "command.damagenexus.damage.lava"
                         )))
                 .then(Commands.literal("on_fire")
                         .executes(ctx -> damageNearest(
@@ -32,7 +33,7 @@ public final class DamageDamageCommands {
                                 level -> level.damageSources().onFire(),
                                 1.0f,
                                 1,
-                                "on-fire damage x1"
+                                "command.damagenexus.damage.on_fire"
                         )))
                 .then(Commands.literal("in_fire")
                         .executes(ctx -> damageNearest(
@@ -40,7 +41,7 @@ public final class DamageDamageCommands {
                                 level -> level.damageSources().inFire(),
                                 1.0f,
                                 1,
-                                "in-fire damage x1"
+                                "command.damagenexus.damage.in_fire"
                         )))
                 .then(Commands.literal("lava_burst")
                         .executes(ctx -> damageNearest(
@@ -48,7 +49,7 @@ public final class DamageDamageCommands {
                                 level -> level.damageSources().lava(),
                                 4.0f,
                                 25,
-                                "lava damage burst x25"
+                                "command.damagenexus.damage.lava_burst"
                         )))
                 .then(Commands.literal("on_fire_burst")
                         .executes(ctx -> damageNearest(
@@ -56,7 +57,7 @@ public final class DamageDamageCommands {
                                 level -> level.damageSources().onFire(),
                                 1.0f,
                                 25,
-                                "on-fire damage burst x25"
+                                "command.damagenexus.damage.on_fire_burst"
                         ))));
     }
 
@@ -72,7 +73,7 @@ public final class DamageDamageCommands {
         if (target == null) {
             return CommandFeedback.fail(
                     source,
-                    "no nearby [DN-Test] living target found."
+                    "command.damagenexus.target_not_found"
             );
         }
 
@@ -89,10 +90,8 @@ public final class DamageDamageCommands {
 
         return CommandFeedback.success(
                 source,
-                label + " applied to nearest target. attempts="
-                        + repeats
-                        + ", accepted="
-                        + accepted
+                "command.damagenexus.damage.applied",
+                Component.translatable(label), repeats, accepted
         );
     }
 

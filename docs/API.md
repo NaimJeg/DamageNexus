@@ -174,6 +174,57 @@ SUPPRESS wins a same-priority conflict. Vanilla melee/projectile captures and
 attribute probability share the same one-shot decision engine. Children start
 with a fresh decision state.
 
+## Entry and affix display summaries
+
+`DamageEntryDisplay.authoredSummary()` and
+`DamageAffixDisplay.authoredSummary()` are optional authored summaries. They
+are compact-mode replacement text only, never part of the generated rule
+detail view.
+
+When `authoredSummary` is present:
+
+- Compact uses the authored summary.
+- Expanded replaces the authored summary with modular rule details.
+
+When `authoredSummary` is absent:
+
+- DamageNexus generates a modular Compact summary.
+- Expanded keeps that generated summary and appends modular details.
+
+The canonical serialized field is `authored_summary`. Legacy `tooltip` data
+continues to decode as the authored summary, and conflicting `authored_summary`
+and `tooltip` fields fail explicitly. New serialization writes only
+`authored_summary`. The deprecated `tooltip()` accessor returns the same
+immutable `authoredSummary()` list.
+
+Entry example:
+
+```java
+DamageEntryDisplay entryDisplay = new DamageEntryDisplay(
+        Optional.of(DisplayText.translatableWithFallback(
+                "example.entry.name", "Example Entry")),
+        List.of(DisplayText.translatableWithFallback(
+                "example.entry.summary", "Authored compact summary")),
+        Optional.of(DisplayText.translatableWithFallback(
+                "example.entry.flavor", "Flavor text")),
+        true
+);
+```
+
+Affix example:
+
+```java
+DamageAffixDisplay affixDisplay = new DamageAffixDisplay(
+        Optional.of(DisplayText.translatableWithFallback(
+                "example.affix.name", "Example Affix")),
+        List.of(DisplayText.translatableWithFallback(
+                "example.affix.summary", "Affix authored compact summary")),
+        Optional.of(DisplayText.translatableWithFallback(
+                "example.affix.flavor", "Affix flavor text")),
+        true
+);
+```
+
 ## Attributes and formulas
 
 After all `TYPE_SCALING` rules, a private handoff applies final-channel damage

@@ -11,7 +11,7 @@ import java.util.Optional;
 public record EntryTooltipView(
         Identifier id,
         Optional<DisplayText> name,
-        List<DisplayText> authoredLines,
+        List<DisplayText> authoredSummary,
         Optional<DisplayText> flavorText,
         DamageEntrySlot slot,
         DamageEntryStacking stacking,
@@ -21,7 +21,8 @@ public record EntryTooltipView(
 ) implements TooltipSection {
     public EntryTooltipView {
         name = name == null ? Optional.empty() : name;
-        authoredLines = authoredLines == null ? List.of() : List.copyOf(authoredLines);
+        authoredSummary = authoredSummary == null
+                ? List.of() : List.copyOf(authoredSummary);
         flavorText = flavorText == null ? Optional.empty() : flavorText;
         stackingGroup = stackingGroup == null ? Optional.empty() : stackingGroup;
         rules = rules == null ? List.of() : List.copyOf(rules);

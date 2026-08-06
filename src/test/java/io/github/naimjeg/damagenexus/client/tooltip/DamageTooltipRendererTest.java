@@ -53,15 +53,16 @@ class DamageTooltipRendererTest {
     @Test
     void shiftExpandedSnapshotContainsConditionAndEffectSections() throws Exception {
         List<String> lines = snapshot(
-                "zh_cn", Locale.SIMPLIFIED_CHINESE, TooltipDetailLevel.EXPANDED
+                "en_us", Locale.US, TooltipDetailLevel.EXPANDED
         );
         assertEquals(List.of(
-                "灼焰裁决",
-                "  规则",
-                "  条件",
-                "    目标当前正在燃烧",
-                "  效果",
-                "    增加 4 点火焰伤害"
+                "Blazing Verdict",
+                "  +4 Fire damage while the target is burning",
+                "  Rules",
+                "  Conditions",
+                "    the target is currently burning",
+                "  Effects",
+                "    Add 4 Fire damage"
         ), lines);
         assertNoLeaks(lines);
     }
@@ -406,6 +407,295 @@ class DamageTooltipRendererTest {
         }
     }
 
+    @Test
+    void authoredSummaryCompactHidesModularRulesAndShowsShiftHint() throws Exception {
+        try (TooltipTestLanguage ignored = TooltipTestLanguage.install("en_us")) {
+            DamageEntryDefinition authored = entry(
+                    id("authored"),
+                    new DamageEntryDisplay(
+                            Optional.of(DisplayText.literal("Authored Entry")),
+                            List.of(DisplayText.literal("Authored compact line")),
+                            Optional.of(DisplayText.literal("Entry flavor")),
+                            true
+                    ),
+                    simpleRule()
+            );
+            List<String> lines = render(
+                    document(List.of(authored), List.of(), List.of(),
+                            DamageItemTemplateReferences.EMPTY, TooltipDebugLevel.OFF),
+                    TooltipDetailLevel.COMPACT, TooltipDebugLevel.OFF,
+                    Locale.US, new ArrayList<>()
+            );
+            String joined = String.join("\n", lines);
+            assertTrue(joined.contains("Authored compact line"));
+            assertFalse(joined.contains("Conditions"));
+            assertFalse(joined.contains("Effects"));
+            assertFalse(joined.contains("+4 Fire damage"));
+            assertEquals(1, occurrences(joined, "Authored compact line"));
+            assertEquals(1, occurrences(joined, "Hold Shift for details"));
+            assertNoLeaks(lines);
+        }
+    }
+
+    @Test
+    void authoredSummaryExpandedReplacesItWithRuleDetailsAndKeepsFlavorOnce()
+            throws Exception {
+        try (TooltipTestLanguage ignored = TooltipTestLanguage.install("en_us")) {
+            DamageEntryDefinition authored = entry(
+                    id("authored_expanded"),
+                    new DamageEntryDisplay(
+                            Optional.of(DisplayText.literal("Authored Entry")),
+                            List.of(DisplayText.literal("Authored compact line")),
+                            Optional.of(DisplayText.literal("Entry flavor")),
+                            true
+                    ),
+                    simpleRule()
+            );
+            List<String> lines = render(
+                    document(List.of(authored), List.of(), List.of(),
+                            DamageItemTemplateReferences.EMPTY, TooltipDebugLevel.OFF),
+                    TooltipDetailLevel.EXPANDED, TooltipDebugLevel.OFF,
+                    Locale.US, new ArrayList<>()
+            );
+            String joined = String.join("\n", lines);
+            assertFalse(joined.contains("Authored compact line"));
+            assertTrue(joined.contains("Conditions"));
+            assertTrue(joined.contains("Effects"));
+            assertTrue(joined.contains("Add 4 Fire damage"));
+            assertEquals(1, occurrences(joined, "Authored Entry"));
+            assertEquals(1, occurrences(joined, "Entry flavor"));
+            assertEquals(1, occurrences(joined, "Add 4 Fire damage"));
+            assertNoLeaks(lines);
+        }
+    }
+
+    @Test
+    void generatedSummaryRemainsTheSameWhenShiftIsPressedWithoutAuthoredSummary()
+            throws Exception {
+        try (TooltipTestLanguage ignored = TooltipTestLanguage.install("en_us")) {
+            DamageEntryDefinition generated = entry(
+                    id("generated"),
+                    new DamageEntryDisplay(
+                            Optional.of(DisplayText.literal("Generated Entry")),
+                            List.of(),
+                            Optional.empty(),
+                            true
+                    ),
+                    simpleRule()
+            );
+            DamageTooltipDocument planned = document(
+                    List.of(generated), List.of(), List.of(),
+                    DamageItemTemplateReferences.EMPTY, TooltipDebugLevel.OFF
+            );
+            List<Component> compact = renderComponents(
+                    planned, TooltipDetailLevel.COMPACT, TooltipDebugLevel.OFF,
+                    Locale.US, new ArrayList<>()
+            );
+            List<Component> expanded = renderComponents(
+                    planned, TooltipDetailLevel.EXPANDED, TooltipDebugLevel.OFF,
+                    Locale.US, new ArrayList<>()
+            );
+            String compactText = compact.stream().map(Component::getString)
+                    .collect(java.util.stream.Collectors.joining("\n"));
+            String expandedText = expanded.stream().map(Component::getString)
+                    .collect(java.util.stream.Collectors.joining("\n"));
+            assertFalse(compactText.contains("Rules"));
+            assertFalse(compactText.contains("Conditions"));
+            assertTrue(compactText.contains("Hold Shift for details"));
+            assertTrue(expandedText.contains("Rules"));
+            assertTrue(expandedText.contains("Conditions"));
+            assertTrue(expandedText.contains("+4 Fire damage while the target is burning"));
+            List<Component> compactContent = compact.subList(0, compact.size() - 1);
+            assertEquals(compactContent, expanded.subList(0, compactContent.size()));
+        }
+    }
+
+    @Test
+    void emptyGeneratedDetailsDoNotShowShiftHintOrDuplicateAnything() throws Exception {
+        DamageRuleDefinition silent = new DamageRuleDefinition(
+                id("silent_rule"), DamageRuleRole.OFFENSIVE,
+                DamagePhase.BASE_MODIFICATION, 500,
+                List.of(), List.of(),
+                DamageRuleStacking.STACK, Optional.empty(), Optional.empty()
+        );
+        DamageEntryDefinition generated = entry(
+                id("silent"),
+                new DamageEntryDisplay(
+                        Optional.empty(),
+                        List.of(),
+                        Optional.empty(),
+                        true
+                ),
+                silent
+        );
+        try (TooltipTestLanguage ignored = TooltipTestLanguage.install("en_us")) {
+            DamageTooltipDocument planned = document(
+                    List.of(generated), List.of(), List.of(),
+                    DamageItemTemplateReferences.EMPTY, TooltipDebugLevel.OFF
+            );
+            List<Component> compact = renderComponents(
+                    planned, TooltipDetailLevel.COMPACT, TooltipDebugLevel.OFF,
+                    Locale.US, new ArrayList<>()
+            );
+            List<Component> expanded = renderComponents(
+                    planned, TooltipDetailLevel.EXPANDED, TooltipDebugLevel.OFF,
+                    Locale.US, new ArrayList<>()
+            );
+            assertEquals(compact, expanded);
+            assertFalse(compact.stream().map(Component::getString)
+                    .anyMatch(line -> line.contains("Hold Shift")));
+        }
+    }
+
+    @Test
+    void missingRulePhrasesFallBackToAuthoredSummaryInExpandedMode()
+            throws Exception {
+        DamageRuleDefinition silent = new DamageRuleDefinition(
+                id("silent_fallback_rule"), DamageRuleRole.OFFENSIVE,
+                DamagePhase.BASE_MODIFICATION, 500,
+                List.of(), List.of(),
+                DamageRuleStacking.STACK, Optional.empty(), Optional.empty()
+        );
+        DamageEntryDefinition authored = entry(
+                id("silent_fallback"),
+                new DamageEntryDisplay(
+                        Optional.of(DisplayText.literal("Fallback Entry")),
+                        List.of(DisplayText.literal("Fallback summary")),
+                        Optional.of(DisplayText.literal("Fallback flavor")),
+                        true
+                ),
+                silent
+        );
+        try (TooltipTestLanguage ignored = TooltipTestLanguage.install("en_us")) {
+            for (TooltipDetailLevel detail : TooltipDetailLevel.values()) {
+                List<String> lines = render(
+                        document(List.of(authored), List.of(), List.of(),
+                                DamageItemTemplateReferences.EMPTY, TooltipDebugLevel.OFF),
+                        detail, TooltipDebugLevel.OFF, Locale.US, new ArrayList<>()
+                );
+                String joined = String.join("\n", lines);
+                assertTrue(joined.contains("Fallback summary"), detail.toString());
+                assertTrue(joined.contains("Fallback flavor"), detail.toString());
+                assertFalse(joined.contains("Hold Shift"), detail.toString());
+                assertFalse(joined.contains("Rules"), detail.toString());
+                assertFalse(joined.isEmpty());
+            }
+        }
+    }
+
+    @Test
+    void affixAuthoredSummaryControlsCompactAndExpandedNestedStructure()
+            throws Exception {
+        try (TooltipTestLanguage ignored = TooltipTestLanguage.install("en_us")) {
+            DamageEntryDefinition nested = entry(
+                    id("nested"),
+                    new DamageEntryDisplay(
+                            Optional.of(DisplayText.literal("Nested Entry")),
+                            List.of(),
+                            Optional.of(DisplayText.literal("Nested flavor")),
+                            true
+                    ),
+                    simpleRule()
+            );
+            DamageAffixDefinition affix = affix(
+                    id("affix_authored"),
+                    new DamageAffixDisplay(
+                            Optional.of(DisplayText.literal("Affix Name")),
+                            List.of(DisplayText.literal("Affix authored line")),
+                            Optional.of(DisplayText.literal("Affix flavor")),
+                            true
+                    ),
+                    nested
+            );
+            DamageTooltipDocument planned = document(
+                    List.of(), List.of(affix), List.of(),
+                    DamageItemTemplateReferences.EMPTY, TooltipDebugLevel.OFF
+            );
+
+            List<String> compact = render(planned, TooltipDetailLevel.COMPACT,
+                    TooltipDebugLevel.OFF, Locale.US, new ArrayList<>());
+            String compactText = String.join("\n", compact);
+            assertTrue(compactText.contains("Affix authored line"));
+            assertFalse(compactText.contains("Entries"));
+            assertFalse(compactText.contains("Nested Entry"));
+            assertFalse(compactText.contains("Nested flavor"));
+            assertFalse(compactText.contains("Conditions"));
+            assertTrue(compactText.contains("Hold Shift for details"));
+
+            List<String> expanded = render(planned, TooltipDetailLevel.EXPANDED,
+                    TooltipDebugLevel.OFF, Locale.US, new ArrayList<>());
+            String expandedText = String.join("\n", expanded);
+            assertFalse(expandedText.contains("Affix authored line"));
+            assertTrue(expandedText.contains("Entries"));
+            assertTrue(expandedText.contains("Nested Entry"));
+            assertTrue(expandedText.contains("Conditions"));
+            assertTrue(expandedText.contains("Effects"));
+            assertTrue(expandedText.contains("Add 4 Fire damage"));
+            assertEquals(1, occurrences(expandedText, "Nested Entry"));
+            assertEquals(1, occurrences(expandedText, "Nested flavor"));
+            assertEquals(1, occurrences(expandedText, "Affix flavor"));
+            assertFalse(expandedText.contains("Hold Shift"));
+        }
+    }
+
+    @Test
+    void affixWithoutAuthoredSummaryKeepsItsGeneratedSummaryInExpandedMode()
+            throws Exception {
+        try (TooltipTestLanguage ignored = TooltipTestLanguage.install("en_us")) {
+            DamageEntryDefinition nested = entry(
+                    id("nested_generated"),
+                    new DamageEntryDisplay(
+                            Optional.of(DisplayText.literal("Nested Entry")),
+                            List.of(),
+                            Optional.of(DisplayText.literal("Nested flavor")),
+                            true
+                    ),
+                    simpleRule()
+            );
+            DamageAffixDefinition affix = affix(
+                    id("affix_generated"),
+                    new DamageAffixDisplay(
+                            Optional.of(DisplayText.literal("Affix Name")),
+                            List.of(),
+                            Optional.of(DisplayText.literal("Affix flavor")),
+                            true
+                    ),
+                    nested
+            );
+            DamageTooltipDocument planned = document(
+                    List.of(), List.of(affix), List.of(),
+                    DamageItemTemplateReferences.EMPTY, TooltipDebugLevel.OFF
+            );
+
+            List<String> compact = render(planned, TooltipDetailLevel.COMPACT,
+                    TooltipDebugLevel.OFF, Locale.US, new ArrayList<>());
+            String compactText = String.join("\n", compact);
+            assertTrue(compactText.contains("Entries"));
+            assertTrue(compactText.contains("Nested Entry"));
+            assertTrue(compactText.contains("+4 Fire damage while the target is burning"));
+            assertTrue(compactText.contains("Nested flavor"));
+            assertTrue(compactText.contains("Affix flavor"));
+            assertTrue(compactText.contains("Hold Shift for details"));
+            assertFalse(compactText.contains("Conditions"));
+
+            List<String> expanded = render(planned, TooltipDetailLevel.EXPANDED,
+                    TooltipDebugLevel.OFF, Locale.US, new ArrayList<>());
+            String expandedText = String.join("\n", expanded);
+            assertTrue(expandedText.contains("Entries"));
+            assertTrue(expandedText.contains("Nested Entry"));
+            assertTrue(expandedText.contains("+4 Fire damage while the target is burning"));
+            assertTrue(expandedText.contains("Rules"));
+            assertTrue(expandedText.contains("Conditions"));
+            assertTrue(expandedText.contains("Add 4 Fire damage"));
+            assertTrue(expandedText.contains("Nested flavor"));
+            assertTrue(expandedText.contains("Affix flavor"));
+            assertFalse(expandedText.contains("Hold Shift"));
+            assertEquals(1, occurrences(expandedText, "Nested Entry"));
+            assertEquals(1, occurrences(expandedText, "Nested flavor"));
+            assertEquals(1, occurrences(expandedText, "Affix flavor"));
+        }
+    }
+
     private static List<String> snapshot(
             String localeName,
             Locale locale,
@@ -433,7 +723,7 @@ class DamageTooltipRendererTest {
                 .plan(entries, affixes, vanilla, templates, debug);
     }
 
-    private static List<String> render(
+    private static List<Component> renderComponents(
             DamageTooltipDocument document,
             TooltipDetailLevel detail,
             TooltipDebugLevel debug,
@@ -446,6 +736,17 @@ class DamageTooltipRendererTest {
                 narratives,
                 new RulePhraseRenderer(registry, locale)
         ).render(tooltip, document, new TooltipPresentationPolicy(detail, debug));
+        return tooltip;
+    }
+
+    private static List<String> render(
+            DamageTooltipDocument document,
+            TooltipDetailLevel detail,
+            TooltipDebugLevel debug,
+            Locale locale,
+            List<Component> tooltip
+    ) {
+        tooltip = renderComponents(document, detail, debug, locale, tooltip);
         return tooltip.stream().map(Component::getString).toList();
     }
 
@@ -474,6 +775,21 @@ class DamageTooltipRendererTest {
         );
     }
 
+    private static DamageEntryDefinition entry(
+            Identifier id,
+            DamageEntryDisplay display,
+            DamageRuleDefinition rule
+    ) {
+        return new DamageEntryDefinition(
+                id,
+                display,
+                DamageEntrySlot.ITEM,
+                List.of(rule),
+                DamageEntryStacking.STACK,
+                Optional.empty()
+        );
+    }
+
     private static DamageAffixDefinition affix() {
         return new DamageAffixDefinition(
                 id("affix"),
@@ -484,6 +800,22 @@ class DamageTooltipRendererTest {
                 DamageAffixSlot.ITEM,
                 DamageAffixRarity.RARE,
                 List.of(entry(simpleRule())),
+                DamageAffixStacking.STACK,
+                Optional.empty()
+        );
+    }
+
+    private static DamageAffixDefinition affix(
+            Identifier id,
+            DamageAffixDisplay display,
+            DamageEntryDefinition entry
+    ) {
+        return new DamageAffixDefinition(
+                id,
+                display,
+                DamageAffixSlot.ITEM,
+                DamageAffixRarity.RARE,
+                List.of(entry),
                 DamageAffixStacking.STACK,
                 Optional.empty()
         );

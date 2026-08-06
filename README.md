@@ -371,6 +371,56 @@ Minecraft `Component`. Register providers while `RegisterRulePhrasesEvent` is
 being dispatched on the NeoForge event bus. The registry freezes when that
 event returns.
 
+## Entry and affix display summaries
+
+`DamageEntryDisplay.authoredSummary()` and
+`DamageAffixDisplay.authoredSummary()` are optional authored summaries used
+only as compact-mode replacement text. They are not part of the modular rule
+detail view.
+
+When `authoredSummary` is present:
+
+- Compact uses the authored summary.
+- Expanded replaces the authored summary with modular rule details.
+
+When `authoredSummary` is absent:
+
+- DamageNexus generates a modular Compact summary.
+- Expanded keeps that generated summary and appends modular details.
+
+The canonical serialized field is `authored_summary`. Legacy `tooltip` fields
+still decode into `authoredSummary()`, but new values encode only
+`authored_summary`. `tooltip()` remains as a deprecated compatibility
+accessor.
+
+Entry example:
+
+```java
+DamageEntryDisplay display = new DamageEntryDisplay(
+        Optional.of(DisplayText.translatableWithFallback(
+                "example.entry.name", "Example Entry")),
+        List.of(DisplayText.translatableWithFallback(
+                "example.entry.summary", "Authored compact summary")),
+        Optional.of(DisplayText.translatableWithFallback(
+                "example.entry.flavor", "Flavor text")),
+        true
+);
+```
+
+Affix example:
+
+```java
+DamageAffixDisplay display = new DamageAffixDisplay(
+        Optional.of(DisplayText.translatableWithFallback(
+                "example.affix.name", "Example Affix")),
+        List.of(DisplayText.translatableWithFallback(
+                "example.affix.summary", "Affix authored compact summary")),
+        Optional.of(DisplayText.translatableWithFallback(
+                "example.affix.flavor", "Affix flavor text")),
+        true
+);
+```
+
 An operation from another mod can reuse a DamageNexus phrase type without
 registering new language grammar:
 

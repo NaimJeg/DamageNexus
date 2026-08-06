@@ -60,32 +60,72 @@ public final class DamageTooltipRenderer {
         affix.name().map(DisplayTextResolver::resolve).ifPresent(name ->
                 tooltip.add(name.copy().withStyle(styleForRarity(affix.rarity().name())))
         );
-        renderAuthored(tooltip, affix.authoredLines(), affix.flavorText(), 1);
-
-        boolean breakdown = policy.detailLevel() == TooltipDetailLevel.EXPANDED
-                ? affix.breakdownPolicy().visibleInDetail()
-                : affix.breakdownPolicy().visibleInCompact();
         List<EntryTooltipView> visibleEntries = affix.entries().stream()
-                .filter(entry -> breakdown || hasVisibleEntryContent(entry))
+                .filter(DamageTooltipRenderer::hasVisibleEntryContent)
                 .toList();
+        List<Component> generatedSummary = new ArrayList<>();
+        List<Component> generatedDetails = new ArrayList<>();
+        List<Component> generatedDetailDelta = new ArrayList<>();
         if (!visibleEntries.isEmpty()) {
-            tooltip.add(indent(
+            generatedSummary.add(indent(
+                    Component.translatable("tooltip.damagenexus.entries"),
+                    1,
+                    ChatFormatting.DARK_AQUA
+            ));
+            generatedDetails.add(indent(
                     Component.translatable("tooltip.damagenexus.entries"),
                     1,
                     ChatFormatting.DARK_AQUA
             ));
             for (EntryTooltipView entry : visibleEntries) {
-                renderEntry(tooltip, entry, policy, 2, breakdown);
+                appendEntryCompactBlock(generatedSummary, entry, 2);
+                appendEntryExpandedBlock(generatedDetails, entry, 2);
+                generatedDetailDelta.addAll(entryRuleDetailDelta(entry, 3));
             }
         }
-        if (policy.detailLevel() == TooltipDetailLevel.COMPACT
-                && affix.breakdownPolicy().visibleInDetail()) {
-            tooltip.add(indent(
-                    Component.translatable("tooltip.damagenexus.hold_shift"),
-                    1,
-                    ChatFormatting.DARK_GRAY
-            ));
+
+        boolean expanded = policy.detailLevel() == TooltipDetailLevel.EXPANDED;
+        boolean hasAuthoredSummary = !affix.authoredSummary().isEmpty();
+        if (!expanded) {
+            if (hasAuthoredSummary) {
+                renderAuthoredSummary(tooltip, affix.authoredSummary(), 1);
+            } else {
+                renderGeneratedSummary(tooltip, generatedSummary);
+                renderNestedFlavors(tooltip, visibleEntries);
+            }
+            renderFlavor(tooltip, affix.flavorText(), 1);
+            if (shouldShowAffixHint(
+                    affix.breakdownPolicy(),
+                    hasAuthoredSummary,
+                    generatedDetails,
+                    generatedDetailDelta
+            )) {
+                renderShiftHint(tooltip, 1);
+            }
+            return;
         }
+
+        if (hasAuthoredSummary) {
+            if (!generatedDetails.isEmpty()) {
+                tooltip.addAll(generatedDetails);
+            } else if (!generatedSummary.isEmpty()) {
+                tooltip.addAll(generatedSummary);
+            } else {
+                renderAuthoredSummary(tooltip, affix.authoredSummary(), 1);
+            }
+        } else {
+            renderGeneratedSummary(tooltip, generatedSummary);
+            if (!generatedDetailDelta.isEmpty()) {
+                tooltip.add(indent(
+                        Component.translatable("tooltip.damagenexus.rules"),
+                        1,
+                        ChatFormatting.DARK_AQUA
+                ));
+                tooltip.addAll(generatedDetailDelta);
+            }
+        }
+        renderNestedFlavors(tooltip, visibleEntries);
+        renderFlavor(tooltip, affix.flavorText(), 1);
     }
 
     private void renderEntry(
@@ -98,30 +138,177 @@ public final class DamageTooltipRenderer {
         entry.name().map(DisplayTextResolver::resolve).ifPresent(name ->
                 tooltip.add(indent(name, depth, ChatFormatting.GRAY))
         );
-        renderAuthored(tooltip, entry.authoredLines(), entry.flavorText(), depth + 1);
+        List<Component> generatedSummary = entryRuleSummary(entry, depth + 1);
+        List<Component> generatedDetails = entryRuleDetails(entry, depth + 1);
+        List<Component> generatedDetailDelta =
+                removeAlreadyShown(generatedDetails, generatedSummary);
+        boolean hasAuthoredSummary = !entry.authoredSummary().isEmpty();
+        boolean expanded = policy.detailLevel() == TooltipDetailLevel.EXPANDED
+                || forceBreakdown;
 
-        boolean breakdown = forceBreakdown || (policy.detailLevel() == TooltipDetailLevel.EXPANDED
-                ? entry.breakdownPolicy().visibleInDetail()
-                : entry.breakdownPolicy().visibleInCompact());
-        if (breakdown && !entry.rules().isEmpty()) {
-            if (policy.detailLevel() == TooltipDetailLevel.EXPANDED) {
-                tooltip.add(indent(
-                        Component.translatable("tooltip.damagenexus.rules"),
-                        depth + 1,
-                        ChatFormatting.DARK_AQUA
-                ));
+        if (!expanded) {
+            if (hasAuthoredSummary) {
+                renderAuthoredSummary(tooltip, entry.authoredSummary(), depth + 1);
+            } else {
+                renderGeneratedSummary(tooltip, generatedSummary);
             }
-            for (RuleTooltipView rule : entry.rules()) {
-                renderNarrative(tooltip, rule.narrative(), policy.detailLevel(), depth + 1);
+            renderFlavor(tooltip, entry.flavorText(), depth + 1);
+            if (shouldShowEntryHint(
+                    hasAuthoredSummary,
+                    generatedSummary,
+                    generatedDetails,
+                    generatedDetailDelta
+            )) {
+                renderShiftHint(tooltip, depth + 1);
+            }
+            return;
+        }
+
+        switch (entry.breakdownPolicy()) {
+            case NONE -> renderAuthoredSummary(
+                    tooltip,
+                    entry.authoredSummary(),
+                    depth + 1
+            );
+            case DETAIL_ONLY -> renderEntryDetailsWithFallback(
+                    tooltip,
+                    entry,
+                    generatedSummary,
+                    generatedDetails,
+                    depth + 1
+            );
+            case SUMMARY_AND_DETAIL -> {
+                renderGeneratedSummary(tooltip, generatedSummary);
+                if (!generatedDetailDelta.isEmpty()) {
+                    tooltip.add(indent(
+                            Component.translatable("tooltip.damagenexus.rules"),
+                            depth + 1,
+                            ChatFormatting.DARK_AQUA
+                    ));
+                    tooltip.addAll(generatedDetailDelta);
+                }
             }
         }
-        if (policy.detailLevel() == TooltipDetailLevel.COMPACT
-                && entry.breakdownPolicy().visibleInDetail()) {
+        renderFlavor(tooltip, entry.flavorText(), depth + 1);
+    }
+
+    private void appendEntryCompactBlock(
+            List<Component> target,
+            EntryTooltipView entry,
+            int depth
+    ) {
+        entry.name().map(DisplayTextResolver::resolve).ifPresent(name ->
+                target.add(indent(name, depth, ChatFormatting.GRAY))
+        );
+        if (entry.breakdownPolicy() == RuleBreakdownPolicy.SUMMARY_AND_DETAIL) {
+            target.addAll(entryRuleSummary(entry, depth + 1));
+        } else {
+            renderAuthoredSummary(target, entry.authoredSummary(), depth + 1);
+        }
+    }
+
+    private void appendEntryExpandedBlock(
+            List<Component> target,
+            EntryTooltipView entry,
+            int depth
+    ) {
+        entry.name().map(DisplayTextResolver::resolve).ifPresent(name ->
+                target.add(indent(name, depth, ChatFormatting.GRAY))
+        );
+        List<Component> generatedSummary = entryRuleSummary(entry, depth + 1);
+        List<Component> generatedDetails = entryRuleDetails(entry, depth + 1);
+        List<Component> generatedDetailDelta =
+                removeAlreadyShown(generatedDetails, generatedSummary);
+        switch (entry.breakdownPolicy()) {
+            case NONE -> renderAuthoredSummary(
+                    target,
+                    entry.authoredSummary(),
+                    depth + 1
+            );
+            case DETAIL_ONLY -> renderEntryDetailsWithFallback(
+                    target,
+                    entry,
+                    generatedSummary,
+                    generatedDetails,
+                    depth + 1
+            );
+            case SUMMARY_AND_DETAIL -> {
+                target.addAll(generatedSummary);
+                if (!generatedDetailDelta.isEmpty()) {
+                    target.add(indent(
+                            Component.translatable("tooltip.damagenexus.rules"),
+                            depth + 1,
+                            ChatFormatting.DARK_AQUA
+                    ));
+                    target.addAll(generatedDetailDelta);
+                }
+            }
+        }
+    }
+
+    private void renderEntryDetailsWithFallback(
+            List<Component> tooltip,
+            EntryTooltipView entry,
+            List<Component> generatedSummary,
+            List<Component> generatedDetails,
+            int depth
+    ) {
+        if (!generatedDetails.isEmpty()) {
             tooltip.add(indent(
-                    Component.translatable("tooltip.damagenexus.hold_shift"),
-                    depth + 1,
-                    ChatFormatting.DARK_GRAY
+                    Component.translatable("tooltip.damagenexus.rules"),
+                    depth,
+                    ChatFormatting.DARK_AQUA
             ));
+            tooltip.addAll(generatedDetails);
+            return;
+        }
+        if (!generatedSummary.isEmpty()) {
+            tooltip.addAll(generatedSummary);
+            return;
+        }
+        renderAuthoredSummary(tooltip, entry.authoredSummary(), depth);
+    }
+
+    private List<Component> entryRuleSummary(
+            EntryTooltipView entry,
+            int depth
+    ) {
+        List<Component> result = new ArrayList<>();
+        if (entry.breakdownPolicy() == RuleBreakdownPolicy.SUMMARY_AND_DETAIL) {
+            appendRuleNarratives(result, entry.rules(), TooltipDetailLevel.COMPACT, depth);
+        }
+        return result;
+    }
+
+    private List<Component> entryRuleDetails(
+            EntryTooltipView entry,
+            int depth
+    ) {
+        List<Component> result = new ArrayList<>();
+        if (entry.breakdownPolicy() != RuleBreakdownPolicy.NONE) {
+            appendRuleNarratives(result, entry.rules(), TooltipDetailLevel.EXPANDED, depth);
+        }
+        return result;
+    }
+
+    private List<Component> entryRuleDetailDelta(
+            EntryTooltipView entry,
+            int depth
+    ) {
+        return removeAlreadyShown(
+                entryRuleDetails(entry, depth),
+                entryRuleSummary(entry, depth)
+        );
+    }
+
+    private void appendRuleNarratives(
+            List<Component> target,
+            List<RuleTooltipView> rules,
+            TooltipDetailLevel detailLevel,
+            int depth
+    ) {
+        for (RuleTooltipView rule : rules) {
+            renderNarrative(target, rule.narrative(), detailLevel, depth);
         }
     }
 
@@ -367,24 +554,109 @@ public final class DamageTooltipRenderer {
         }
     }
 
-    private static void renderAuthored(
+    private static boolean shouldShowAffixHint(
+            RuleBreakdownPolicy policy,
+            boolean hasAuthoredSummary,
+            List<Component> generatedDetails,
+            List<Component> generatedDetailDelta
+    ) {
+        if (policy == RuleBreakdownPolicy.NONE) {
+            return false;
+        }
+        return hasAuthoredSummary
+                ? !generatedDetails.isEmpty()
+                : !generatedDetailDelta.isEmpty();
+    }
+
+    private static boolean shouldShowEntryHint(
+            boolean hasAuthoredSummary,
+            List<Component> generatedSummary,
+            List<Component> generatedDetails,
+            List<Component> generatedDetailDelta
+    ) {
+        if (generatedDetails.isEmpty()) {
+            return false;
+        }
+        return hasAuthoredSummary || !generatedDetailDelta.isEmpty();
+    }
+
+    private static void renderAuthoredSummary(
             List<Component> tooltip,
-            List<io.github.naimjeg.damagenexus.api.display.DisplayText> lines,
+            List<io.github.naimjeg.damagenexus.api.display.DisplayText> summary,
+            int depth
+    ) {
+        for (var line : summary) {
+            tooltip.add(indent(DisplayTextResolver.resolve(line), depth, ChatFormatting.GRAY));
+        }
+    }
+
+    private static void renderGeneratedSummary(
+            List<Component> tooltip,
+            List<Component> summary
+    ) {
+        tooltip.addAll(summary);
+    }
+
+    private static void renderFlavor(
+            List<Component> tooltip,
             Optional<io.github.naimjeg.damagenexus.api.display.DisplayText> flavor,
             int depth
     ) {
-        for (var line : lines) {
-            tooltip.add(indent(DisplayTextResolver.resolve(line), depth, ChatFormatting.GRAY));
-        }
         flavor.map(DisplayTextResolver::resolve).ifPresent(line ->
                 tooltip.add(indent(line, depth, ChatFormatting.DARK_GRAY)
                         .copy().withStyle(ChatFormatting.ITALIC))
         );
     }
 
+    private static void renderNestedFlavors(
+            List<Component> tooltip,
+            List<EntryTooltipView> entries
+    ) {
+        for (EntryTooltipView entry : entries) {
+            renderFlavor(tooltip, entry.flavorText(), 3);
+        }
+    }
+
+    private static void renderShiftHint(
+            List<Component> tooltip,
+            int depth
+    ) {
+        tooltip.add(indent(
+                Component.translatable("tooltip.damagenexus.hold_shift"),
+                depth,
+                ChatFormatting.DARK_GRAY
+        ));
+    }
+
+    private static List<Component> removeAlreadyShown(
+            List<Component> details,
+            List<Component> summary
+    ) {
+        List<Component> remaining = new ArrayList<>(details);
+        for (Component alreadyShown : summary) {
+            int index = indexOfComponent(remaining, alreadyShown);
+            if (index >= 0) {
+                remaining.remove(index);
+            }
+        }
+        return List.copyOf(remaining);
+    }
+
+    private static int indexOfComponent(
+            List<Component> components,
+            Component needle
+    ) {
+        for (int index = 0; index < components.size(); index++) {
+            if (components.get(index).equals(needle)) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
     private static boolean hasVisibleEntryContent(EntryTooltipView entry) {
         return entry.name().isPresent()
-                || !entry.authoredLines().isEmpty()
+                || !entry.authoredSummary().isEmpty()
                 || entry.flavorText().isPresent()
                 || entry.breakdownPolicy() != RuleBreakdownPolicy.NONE;
     }

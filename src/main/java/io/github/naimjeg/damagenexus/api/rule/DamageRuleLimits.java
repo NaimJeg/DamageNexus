@@ -314,7 +314,7 @@ public final class DamageRuleLimits {
             Optional<String> displayProblem =
                     findDisplayProblem(
                             affix.display().name(),
-                            affix.display().tooltip(),
+                            affix.display().authoredSummary(),
                             affix.display().flavorText()
                     );
 
@@ -434,7 +434,7 @@ public final class DamageRuleLimits {
         Optional<String> displayProblem =
                 findDisplayProblem(
                         entry.display().name(),
-                        entry.display().tooltip(),
+                        entry.display().authoredSummary(),
                         entry.display().flavorText()
                 );
 
@@ -1095,7 +1095,7 @@ public final class DamageRuleLimits {
         ) {
             return addDisplay(
                     display.name(),
-                    display.tooltip(),
+                    display.authoredSummary(),
                     display.flavorText()
             );
         }
@@ -1106,7 +1106,7 @@ public final class DamageRuleLimits {
         ) {
             return addDisplay(
                     display.name(),
-                    display.tooltip(),
+                    display.authoredSummary(),
                     display.flavorText()
             );
         }

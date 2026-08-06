@@ -5,8 +5,22 @@ public enum RuleBreakdownPolicy {
     DETAIL_ONLY,
     SUMMARY_AND_DETAIL;
 
+    public static RuleBreakdownPolicy fromDisplay(
+            boolean showRuleBreakdown,
+            boolean hasAuthoredSummary
+    ) {
+        if (!showRuleBreakdown) {
+            return NONE;
+        }
+        return hasAuthoredSummary ? DETAIL_ONLY : SUMMARY_AND_DETAIL;
+    }
+
+    /**
+     * @deprecated Use {@link #fromDisplay(boolean, boolean)}.
+     */
+    @Deprecated(forRemoval = false)
     public static RuleBreakdownPolicy fromLegacy(boolean showRuleBreakdown) {
-        return showRuleBreakdown ? SUMMARY_AND_DETAIL : NONE;
+        return fromDisplay(showRuleBreakdown, false);
     }
 
     public boolean visibleInCompact() {

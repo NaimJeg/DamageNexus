@@ -12,7 +12,7 @@ import java.util.Optional;
 public record AffixTooltipView(
         Identifier id,
         Optional<DisplayText> name,
-        List<DisplayText> authoredLines,
+        List<DisplayText> authoredSummary,
         Optional<DisplayText> flavorText,
         DamageAffixSlot slot,
         DamageAffixRarity rarity,
@@ -23,7 +23,8 @@ public record AffixTooltipView(
 ) implements TooltipSection {
     public AffixTooltipView {
         name = name == null ? Optional.empty() : name;
-        authoredLines = authoredLines == null ? List.of() : List.copyOf(authoredLines);
+        authoredSummary = authoredSummary == null
+                ? List.of() : List.copyOf(authoredSummary);
         flavorText = flavorText == null ? Optional.empty() : flavorText;
         stackingGroup = stackingGroup == null ? Optional.empty() : stackingGroup;
         entries = entries == null ? List.of() : List.copyOf(entries);

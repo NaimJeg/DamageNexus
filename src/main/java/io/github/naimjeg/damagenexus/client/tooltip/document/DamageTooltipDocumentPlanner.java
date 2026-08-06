@@ -67,13 +67,16 @@ public final class DamageTooltipDocumentPlanner {
         return new AffixTooltipView(
                 affix.id(),
                 affix.display().name(),
-                affix.display().tooltip(),
+                affix.display().authoredSummary(),
                 affix.display().flavorText(),
                 affix.slot(),
                 affix.rarity(),
                 affix.stacking(),
                 affix.stackingGroup(),
-                RuleBreakdownPolicy.fromLegacy(affix.display().showRuleBreakdown()),
+                RuleBreakdownPolicy.fromDisplay(
+                        affix.display().showRuleBreakdown(),
+                        !affix.display().authoredSummary().isEmpty()
+                ),
                 affix.entries().stream().map(this::entry).toList()
         );
     }
@@ -82,12 +85,15 @@ public final class DamageTooltipDocumentPlanner {
         return new EntryTooltipView(
                 entry.id(),
                 entry.display().name(),
-                entry.display().tooltip(),
+                entry.display().authoredSummary(),
                 entry.display().flavorText(),
                 entry.slot(),
                 entry.stacking(),
                 entry.stackingGroup(),
-                RuleBreakdownPolicy.fromLegacy(entry.display().showRuleBreakdown()),
+                RuleBreakdownPolicy.fromDisplay(
+                        entry.display().showRuleBreakdown(),
+                        !entry.display().authoredSummary().isEmpty()
+                ),
                 entry.rules().stream().map(this::rule).toList()
         );
     }

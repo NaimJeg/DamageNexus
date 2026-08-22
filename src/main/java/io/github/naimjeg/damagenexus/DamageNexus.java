@@ -13,7 +13,7 @@ import org.slf4j.Logger;
 public class DamageNexus {
     public static final String MODID = "damagenexus";
     public static final Logger LOGGER = LogUtils.getLogger();
-
+    //
     public DamageNexus(IEventBus modEventBus, ModContainer modContainer) {
         modEventBus.addListener(DamageNexusConfig::onLoad);
         modEventBus.addListener(DamageNexusConfig::onReload);

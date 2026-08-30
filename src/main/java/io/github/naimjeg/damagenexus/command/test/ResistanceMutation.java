@@ -1,5 +1,7 @@
 package io.github.naimjeg.damagenexus.command.test;
 
+import io.github.naimjeg.damagenexus.registry.ModAttributes;
+
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 
@@ -32,8 +34,8 @@ public record ResistanceMutation(
                     "Resistance mutation value must be finite: " + value
             );
         }
-        if (value < TestResistance.MIN_ATTRIBUTE_VALUE
-                || value > TestResistance.MAX_ATTRIBUTE_VALUE) {
+        if (value < ModAttributes.RESISTANCE_RATING_MIN
+                || value > ModAttributes.RESISTANCE_RATING_MAX) {
             throw new IllegalArgumentException(
                     "Resistance mutation value out of legal range: "
                             + value

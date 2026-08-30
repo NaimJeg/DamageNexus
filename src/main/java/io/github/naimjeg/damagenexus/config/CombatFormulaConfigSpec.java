@@ -30,7 +30,10 @@ public final class CombatFormulaConfigSpec {
         RESISTANCE_K_VALUE = builder
                 .comment(
                         "K value for the elemental resistance formula.",
-                        "Formula: Reduction = rating / (rating + K).",
+                        "Formula for rating >= 0: Reduction = rating / (rating + K).",
+                        "Formula for rating < 0: Reduction = rating / K.",
+                        "Positive reduction is capped at 95%; negative rating represents",
+                        "vulnerability and is not capped at double damage.",
                         "Default: 50.0"
                 )
                 .defineInRange(

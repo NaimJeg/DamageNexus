@@ -12,6 +12,7 @@ import io.github.naimjeg.damagenexus.command.test.TestMobSpawnConfig;
 import io.github.naimjeg.damagenexus.command.test.TestMobSpawnOptions;
 import io.github.naimjeg.damagenexus.command.test.TestMobTags;
 import io.github.naimjeg.damagenexus.command.test.TestResistance;
+import io.github.naimjeg.damagenexus.registry.ModAttributes;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
@@ -170,8 +171,8 @@ public final class DamageMobCommands {
                 .then(Commands.argument(
                                 "value",
                                 DoubleArgumentType.doubleArg(
-                                        TestResistance.MIN_ATTRIBUTE_VALUE,
-                                        TestResistance.MAX_ATTRIBUTE_VALUE
+                                        ModAttributes.RESISTANCE_RATING_MIN,
+                                        ModAttributes.RESISTANCE_RATING_MAX
                                 )
                         )
                         .executes(ctx -> guarded(

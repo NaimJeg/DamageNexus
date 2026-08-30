@@ -26,11 +26,19 @@ class ResistanceMitigationProcessorTest {
     }
 
     @Test
-    void positiveAndNegativeCapsAndNonFiniteValuesAreSafe() {
+    void positiveCapAndNegativeVulnerabilityRemainFiniteAndSafe() {
         assertEquals(0.95f,
                 ResistanceMitigationProcessor.reductionFor(100000, 1), EPSILON);
+        assertEquals(-0.5f,
+                ResistanceMitigationProcessor.reductionFor(-25, 50), EPSILON);
         assertEquals(-1.0f,
-                ResistanceMitigationProcessor.reductionFor(-100000, 1), EPSILON);
+                ResistanceMitigationProcessor.reductionFor(-50, 50), EPSILON);
+        assertEquals(-2.0f,
+                ResistanceMitigationProcessor.reductionFor(-100, 50), EPSILON);
+        assertEquals(-4.0f,
+                ResistanceMitigationProcessor.reductionFor(-200, 50), EPSILON);
+        assertEquals(-Float.MAX_VALUE,
+                ResistanceMitigationProcessor.reductionFor(-Float.MAX_VALUE, Float.MIN_VALUE));
         assertEquals(0.0f,
                 ResistanceMitigationProcessor.reductionFor(Float.NaN, 50), EPSILON);
         assertEquals(0.0f,
@@ -45,9 +53,9 @@ class ResistanceMitigationProcessorTest {
         assertEquals(-Float.MAX_VALUE,
                 ResistanceMitigationProcessor.totalRating(
                         -Float.MAX_VALUE, -Float.MAX_VALUE, 0));
-        assertEquals(-1.0f,
+        assertEquals(-Float.MAX_VALUE,
                 ResistanceMitigationProcessor.reductionFor(
-                        -Float.MAX_VALUE, Float.MIN_VALUE), EPSILON);
+                        -Float.MAX_VALUE, Float.MIN_VALUE));
     }
 
     @Test

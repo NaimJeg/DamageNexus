@@ -734,7 +734,9 @@ final class DamageContextMutations implements DamageMutationContext {
         }
 
         float safeReduction =
-                DamageMutationGuard.clampReduction(reductionPercent);
+                DamageMutationGuard.clampMitigationUpperBound(
+                        reductionPercent
+                );
 
         if (safeReduction == 0.0f) {
             return DamageMutationResult.NO_OP_ZERO;
@@ -790,7 +792,9 @@ final class DamageContextMutations implements DamageMutationContext {
         }
 
         float safeReduction =
-                DamageMutationGuard.clampReduction(reductionPercent);
+                DamageMutationGuard.clampMitigationUpperBound(
+                        reductionPercent
+                );
 
         if (safeReduction == 0.0f) {
             return DamageMutationResult.NO_OP_ZERO;

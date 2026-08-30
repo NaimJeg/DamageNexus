@@ -5,6 +5,7 @@ import io.github.naimjeg.damagenexus.api.enums.DamageApplicationBucket;
 import io.github.naimjeg.damagenexus.api.enums.DamageChannel;
 import io.github.naimjeg.damagenexus.api.enums.DamagePhase;
 import io.github.naimjeg.damagenexus.core.registry.DamageChannelRegistry;
+import io.github.naimjeg.damagenexus.core.pipeline.mutation.DamageMutationGuard;
 import io.github.naimjeg.damagenexus.diagnostics.logging.CombatTraceFactory;
 import org.junit.jupiter.api.Test;
 
@@ -89,6 +90,82 @@ class DamageContextMutationsTest {
         assertEquals(DamageMutationResult.APPLIED, result);
         assertTrue(pipelineResult.damageCancelled());
         assertEquals("test/source", pipelineResult.cancelSourceId());
+    }
+
+    @Test
+    void channelMitigationAllowsVulnerabilityBelowNegativeOneButCapsPositiveReduction() {
+        DamageChannel channel = DamageChannelRegistry.getUntyped();
+
+        DamagePacketState vulnerablePacket = new DamagePacketState();
+        vulnerablePacket.getOrCreateComponent(channel);
+        DamageContextMutations vulnerableMutations = mutations(
+                vulnerablePacket,
+                new DamagePipelineResult(),
+                DamagePhase.MITIGATION_SETUP
+        );
+        assertEquals(
+                DamageMutationResult.APPLIED,
+                vulnerableMutations.tryAddChannelMitigation(
+                        channel, -2.0f, "test/vulnerability"
+                )
+        );
+        assertEquals(
+                -2.0f,
+                DamageMutationGuard.clampMitigationUpperBound(-2.0f)
+        );
+
+        DamagePacketState protectedPacket = new DamagePacketState();
+        protectedPacket.getOrCreateComponent(channel);
+        DamageContextMutations protectedMutations = mutations(
+                protectedPacket,
+                new DamagePipelineResult(),
+                DamagePhase.MITIGATION_SETUP
+        );
+        assertEquals(
+                DamageMutationResult.APPLIED,
+                protectedMutations.tryAddChannelMitigation(
+                        channel, 2.0f, "test/full-reduction"
+                )
+        );
+        assertEquals(
+                1.0f,
+                DamageMutationGuard.clampMitigationUpperBound(2.0f)
+        );
+    }
+
+    @Test
+    void globalMitigationAllowsVulnerabilityBelowNegativeOneButCapsPositiveReduction() {
+        DamageChannel channel = DamageChannelRegistry.getUntyped();
+
+        DamagePacketState vulnerablePacket = new DamagePacketState();
+        vulnerablePacket.getOrCreateComponent(channel);
+        DamageContextMutations vulnerableMutations = mutations(
+                vulnerablePacket,
+                new DamagePipelineResult(),
+                DamagePhase.MITIGATION_SETUP
+        );
+        assertEquals(
+                DamageMutationResult.APPLIED,
+                vulnerableMutations.tryAddGlobalMitigation(
+                        -2.0f, "test/global-vulnerability"
+                )
+        );
+        assertEquals(-2.0f, vulnerablePacket.globalMitigations().getFloat(0));
+
+        DamagePacketState protectedPacket = new DamagePacketState();
+        protectedPacket.getOrCreateComponent(channel);
+        DamageContextMutations protectedMutations = mutations(
+                protectedPacket,
+                new DamagePipelineResult(),
+                DamagePhase.MITIGATION_SETUP
+        );
+        assertEquals(
+                DamageMutationResult.APPLIED,
+                protectedMutations.tryAddGlobalMitigation(
+                        2.0f, "test/global-full-reduction"
+                )
+        );
+        assertEquals(1.0f, protectedPacket.globalMitigations().getFloat(0));
     }
 
     private static DamageContextMutations mutations(

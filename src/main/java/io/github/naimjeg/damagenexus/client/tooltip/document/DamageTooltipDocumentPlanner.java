@@ -4,6 +4,7 @@ import io.github.naimjeg.damagenexus.api.item.template.DamageItemTemplateReferen
 import io.github.naimjeg.damagenexus.api.rule.CompositeDamageRuleCondition;
 import io.github.naimjeg.damagenexus.api.rule.DamageRuleCondition;
 import io.github.naimjeg.damagenexus.api.rule.DamageRuleDefinition;
+import io.github.naimjeg.damagenexus.api.rule.DamageRuleOrdering;
 import io.github.naimjeg.damagenexus.api.rule.affix.DamageAffixDefinition;
 import io.github.naimjeg.damagenexus.api.rule.entry.DamageEntryDefinition;
 import io.github.naimjeg.damagenexus.client.tooltip.narrative.RuleNarrativePlanner;
@@ -29,10 +30,12 @@ public final class DamageTooltipDocumentPlanner {
     ) {
         List<EntryTooltipView> entryViews = safe(standaloneEntries).stream()
                 .filter(Objects::nonNull)
+                .sorted(DamageTooltipDocumentPlanner::compareEntryExecutionOrder)
                 .map(this::entry)
                 .toList();
         List<AffixTooltipView> affixViews = safe(affixes).stream()
                 .filter(Objects::nonNull)
+                .sorted(DamageTooltipDocumentPlanner::compareAffixExecutionOrder)
                 .map(this::affix)
                 .toList();
         DamageItemTemplateReferences safeReferences = references == null
@@ -77,7 +80,10 @@ public final class DamageTooltipDocumentPlanner {
                         affix.display().showRuleBreakdown(),
                         !affix.display().authoredSummary().isEmpty()
                 ),
-                affix.entries().stream().map(this::entry).toList()
+                affix.entries().stream()
+                        .sorted(DamageTooltipDocumentPlanner::compareEntryExecutionOrder)
+                        .map(this::entry)
+                        .toList()
         );
     }
 
@@ -94,8 +100,57 @@ public final class DamageTooltipDocumentPlanner {
                         entry.display().showRuleBreakdown(),
                         !entry.display().authoredSummary().isEmpty()
                 ),
-                entry.rules().stream().map(this::rule).toList()
+                sortedRules(entry).stream()
+                        .map(this::rule)
+                        .toList()
         );
+    }
+
+    private static int compareEntryExecutionOrder(
+            DamageEntryDefinition first,
+            DamageEntryDefinition second
+    ) {
+        int ruleComparison = DamageRuleOrdering.compareDefinitionSequences(
+                sortedRules(first),
+                sortedRules(second)
+        );
+        return ruleComparison != 0
+                ? ruleComparison
+                : first.id().compareNamespaced(second.id());
+    }
+
+    /**
+     * Affix blocks deliberately remain contiguous. A multi-phase affix cannot
+     * be both globally interleaved rule-by-rule and kept as one visual block,
+     * so its contained execution-ordered rule sequence determines the block's
+     * placement.
+     */
+    private static int compareAffixExecutionOrder(
+            DamageAffixDefinition first,
+            DamageAffixDefinition second
+    ) {
+        int ruleComparison = DamageRuleOrdering.compareDefinitionSequences(
+                sortedRules(first),
+                sortedRules(second)
+        );
+        return ruleComparison != 0
+                ? ruleComparison
+                : first.id().compareNamespaced(second.id());
+    }
+
+    private static List<DamageRuleDefinition> sortedRules(
+            DamageEntryDefinition entry
+    ) {
+        return DamageRuleOrdering.sortedDefinitions(entry.rules());
+    }
+
+    private static List<DamageRuleDefinition> sortedRules(
+            DamageAffixDefinition affix
+    ) {
+        return affix.entries().stream()
+                .flatMap(entry -> entry.rules().stream())
+                .sorted(DamageRuleOrdering.DEFINITION_EXECUTION_ORDER)
+                .toList();
     }
 
     private RuleTooltipView rule(DamageRuleDefinition rule) {

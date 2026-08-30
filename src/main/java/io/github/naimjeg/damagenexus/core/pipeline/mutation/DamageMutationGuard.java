@@ -51,8 +51,13 @@ public final class DamageMutationGuard {
         return Math.max(0.0f, Math.min(1.0f, ratio));
     }
 
-    public static float clampReduction(float reduction) {
-        return Math.max(-1.0f, Math.min(1.0f, reduction));
+    /**
+     * Mitigation may express vulnerability below -1.0; finite inputs are
+     * validated by {@link #requireFinite(float)} before this guard is used.
+     * Positive mitigation cannot exceed full reduction.
+     */
+    public static float clampMitigationUpperBound(float reduction) {
+        return Math.min(1.0f, reduction);
     }
 
     public static float clampNonNegative(float amount) {

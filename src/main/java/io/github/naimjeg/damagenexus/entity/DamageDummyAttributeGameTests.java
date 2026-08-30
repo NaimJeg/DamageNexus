@@ -19,6 +19,7 @@ import net.minecraft.gametest.framework.TestData;
 import net.minecraft.gametest.framework.TestEnvironmentDefinition;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -95,6 +96,8 @@ final class DamageDummyAttributeGameTests {
         if (maxHealth == null) {
             throw new AssertionError("dummy is missing max health");
         }
+        double expectedMaxHealth = Attributes.MAX_HEALTH.value()
+                .sanitizeValue(Double.MAX_VALUE);
         maxHealth.addTransientModifier(new AttributeModifier(
                 MODIFIER_ID,
                 5.0D,
@@ -145,9 +148,11 @@ final class DamageDummyAttributeGameTests {
                         5000.0D
                 ))
         );
-        if (maxHealth.getBaseValue() != 1024.0D) {
+        if (maxHealth.getBaseValue() != expectedMaxHealth) {
             throw new AssertionError("sanitizeValue did not clamp base value");
         }
+
+        verifyResistanceRangeAndDummySanitization(dummy);
 
         assertRejected(dummy, List.of(new DamageDummyAttributeEdit(
                 MAX_HEALTH_ID,
@@ -183,6 +188,92 @@ final class DamageDummyAttributeGameTests {
             throw new AssertionError("invalid batch partially modified state");
         }
         helper.succeed();
+    }
+
+    private static void verifyResistanceRangeAndDummySanitization(
+            DamageDummyEntity dummy
+    ) {
+        List<Holder<Attribute>> resistances = List.of(
+                ModAttributes.RESISTANCE_PHYSICAL,
+                ModAttributes.RESISTANCE_FIRE,
+                ModAttributes.RESISTANCE_COLD,
+                ModAttributes.RESISTANCE_LIGHTNING,
+                ModAttributes.RESISTANCE_MAGIC,
+                ModAttributes.RESISTANCE_WITHER,
+                ModAttributes.RESISTANCE_POISON,
+                ModAttributes.RESISTANCE_MELEE,
+                ModAttributes.RESISTANCE_PROJECTILE,
+                ModAttributes.RESISTANCE_KINETIC
+        );
+
+        for (Holder<Attribute> resistance : resistances) {
+            Attribute attribute = resistance.value();
+            if (attribute.getDefaultValue() != 0.0D
+                    || attribute.sanitizeValue(-Double.MAX_VALUE)
+                    != ModAttributes.RESISTANCE_RATING_MIN
+                    || attribute.sanitizeValue(Double.MAX_VALUE)
+                    != ModAttributes.RESISTANCE_RATING_MAX) {
+                throw new AssertionError(
+                        "DamageNexus resistance range is not -65535..65535: "
+                                + resistance.getKey().identifier()
+                );
+            }
+        }
+
+        Identifier lightningId = ModAttributes.RESISTANCE_LIGHTNING.getId();
+        AttributeInstance lightning = dummy.getAttribute(
+                ModAttributes.RESISTANCE_LIGHTNING
+        );
+        if (lightning == null) {
+            throw new AssertionError("dummy is missing lightning resistance");
+        }
+
+        assertResistanceEdit(
+                dummy,
+                lightning,
+                lightningId,
+                ModAttributes.RESISTANCE_RATING_MIN,
+                ModAttributes.RESISTANCE_RATING_MIN
+        );
+        assertResistanceEdit(
+                dummy,
+                lightning,
+                lightningId,
+                ModAttributes.RESISTANCE_RATING_MIN - 1.0D,
+                ModAttributes.RESISTANCE_RATING_MIN
+        );
+        assertResistanceEdit(
+                dummy,
+                lightning,
+                lightningId,
+                ModAttributes.RESISTANCE_RATING_MAX,
+                ModAttributes.RESISTANCE_RATING_MAX
+        );
+        assertResistanceEdit(
+                dummy,
+                lightning,
+                lightningId,
+                ModAttributes.RESISTANCE_RATING_MAX + 1.0D,
+                ModAttributes.RESISTANCE_RATING_MAX
+        );
+    }
+
+    private static void assertResistanceEdit(
+            DamageDummyEntity dummy,
+            AttributeInstance instance,
+            Identifier attributeId,
+            double requested,
+            double expected
+    ) {
+        assertApplied(dummy, List.of(
+                new DamageDummyAttributeEdit(attributeId, requested)
+        ));
+        if (instance.getBaseValue() != expected) {
+            throw new AssertionError(
+                    "damage dummy did not use the attribute range: requested="
+                            + requested + " actual=" + instance.getBaseValue()
+            );
+        }
     }
 
     private static void pedestalContract(GameTestHelper helper) {

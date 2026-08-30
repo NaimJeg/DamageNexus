@@ -585,17 +585,27 @@ final class TestMobExhibitGameTests {
         }
         plain.discard();
 
-        // 16.6 out-of-range value must fail to parse and leave no test mob.
-        Set<UUID> beforeInvalid = testMobUuids(level);
-        int invalidResult = executeParseFailure(
-                dispatcher,
-                "damagenexus mob zombie mutation resistance fire 20000",
-                source(level, position.add(10, 0, 0))
-        );
-        require(invalidResult < 0,
-                "out-of-range mutation falsely reported spawn success");
-        require(freshTestMobs(level, beforeInvalid).isEmpty(),
-                "out-of-range mutation left a test entity behind");
+        // 16.6 Attribute-derived bounds must reject either out-of-range side
+        // without spawning a test mob.
+        for (double invalidResistance : List.of(
+                ModAttributes.RESISTANCE_RATING_MIN - 1.0D,
+                ModAttributes.RESISTANCE_RATING_MAX + 1.0D
+        )) {
+            Set<UUID> beforeInvalid = testMobUuids(level);
+            int invalidResult = executeParseFailure(
+                    dispatcher,
+                    String.format(
+                            Locale.ROOT,
+                            "damagenexus mob zombie mutation resistance fire %.1f",
+                            invalidResistance
+                    ),
+                    source(level, position.add(10, 0, 0))
+            );
+            require(invalidResult < 0,
+                    "out-of-range mutation falsely reported spawn success");
+            require(freshTestMobs(level, beforeInvalid).isEmpty(),
+                    "out-of-range mutation left a test entity behind");
+        }
 
         helper.succeed();
     }

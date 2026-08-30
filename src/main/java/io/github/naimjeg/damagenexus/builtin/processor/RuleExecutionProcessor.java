@@ -4,6 +4,7 @@ import com.mojang.logging.LogUtils;
 import io.github.naimjeg.damagenexus.api.DamagePhaseProcessor;
 import io.github.naimjeg.damagenexus.api.context.DamageRuleContext;
 import io.github.naimjeg.damagenexus.api.enums.DamagePhase;
+import io.github.naimjeg.damagenexus.api.rule.DamageRuleOrdering;
 import io.github.naimjeg.damagenexus.api.rule.DamageRuleProvider;
 import io.github.naimjeg.damagenexus.api.rule.RuntimeDamageRule;
 import io.github.naimjeg.damagenexus.core.config.DamageNexusSettings;
@@ -21,19 +22,12 @@ import io.github.naimjeg.damagenexus.registry.rule.DamageRuleProviders;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
 public record RuleExecutionProcessor(DamagePhase phase) implements DamagePhaseProcessor {
 
     private static final Logger LOGGER = LogUtils.getLogger();
-
-    private static final Comparator<RuntimeDamageRule> PRIORITY_DESC =
-            (a, b) -> Integer.compare(
-                    b.definition().priority(),
-                    a.definition().priority()
-            );
 
     private static boolean safeSupportsPhase(
             DamageNexusContext ctx,
@@ -212,7 +206,11 @@ public record RuleExecutionProcessor(DamagePhase phase) implements DamagePhasePr
             }
         }
 
-        rules.sort(PRIORITY_DESC);
+        rules.sort((first, second) ->
+                DamageRuleOrdering.compareSamePhasePriorityDescending(
+                        first.definition(),
+                        second.definition()
+                ));
 
         for (RuntimeDamageRule rule : rules) {
             DamageRuleExecutor.execute(

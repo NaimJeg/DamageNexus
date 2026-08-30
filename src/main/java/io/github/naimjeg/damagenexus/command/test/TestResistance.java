@@ -21,10 +21,6 @@ public enum TestResistance {
     PROJECTILE("projectile", ModAttributes.RESISTANCE_PROJECTILE),
     KINETIC("kinetic", ModAttributes.RESISTANCE_KINETIC);
 
-    /** Shared legal range for every DamageNexus resistance attribute. */
-    public static final double MIN_ATTRIBUTE_VALUE = -10240.0D;
-    public static final double MAX_ATTRIBUTE_VALUE = 10240.0D;
-
     private final String commandName;
     private final Holder<Attribute> attribute;
 

@@ -26,6 +26,13 @@ public class ModAttributes {
 
     public static final DeferredRegister<Attribute> ATTRIBUTES = DeferredRegister.create(Registries.ATTRIBUTE, DamageNexus.MODID);
 
+    /** Shared declared bound for DamageNexus resistance rating attributes. */
+    public static final double RESISTANCE_RATING_LIMIT = 65535.0D;
+    public static final double RESISTANCE_RATING_MIN =
+            -RESISTANCE_RATING_LIMIT;
+    public static final double RESISTANCE_RATING_MAX =
+            RESISTANCE_RATING_LIMIT;
+
     public static final DeferredHolder<Attribute, Attribute> CRIT_CHANCE = ATTRIBUTES.register("crit_chance",
             () -> new RangedAttribute("attribute.name.damagenexus.crit_chance", 0.0D, 0.0D, 1.0D).setSyncable(true));
 
@@ -67,34 +74,34 @@ public class ModAttributes {
     public static final DeferredHolder<Attribute, Attribute> DODGE_CHANCE = ATTRIBUTES.register("dodge_chance",
             () -> new RangedAttribute("attribute.name.damagenexus.dodge_chance", 0.0D, 0.0D, 1.0D).setSyncable(true));
 
-    public static final DeferredHolder<Attribute, Attribute> RESISTANCE_PHYSICAL = ATTRIBUTES.register("resistance_physical", () -> new RangedAttribute("attribute.name.damagenexus.resistance_physical", 0.0D, -10240.0D, 10240.0D).setSyncable(true));
+    public static final DeferredHolder<Attribute, Attribute> RESISTANCE_PHYSICAL = ATTRIBUTES.register("resistance_physical", () -> new RangedAttribute("attribute.name.damagenexus.resistance_physical", 0.0D, RESISTANCE_RATING_MIN, RESISTANCE_RATING_MAX).setSyncable(true));
 
     public static final DeferredHolder<Attribute, Attribute> RESISTANCE_FIRE = ATTRIBUTES.register("resistance_fire",
-            () -> new RangedAttribute("attribute.name.damagenexus.resistance_fire", 0.0D, -10240.0D, 10240.0D).setSyncable(true));
+            () -> new RangedAttribute("attribute.name.damagenexus.resistance_fire", 0.0D, RESISTANCE_RATING_MIN, RESISTANCE_RATING_MAX).setSyncable(true));
 
     public static final DeferredHolder<Attribute, Attribute> RESISTANCE_COLD = ATTRIBUTES.register("resistance_cold",
-            () -> new RangedAttribute("attribute.name.damagenexus.resistance_cold", 0.0D, -10240.0D, 10240.0D).setSyncable(true));
+            () -> new RangedAttribute("attribute.name.damagenexus.resistance_cold", 0.0D, RESISTANCE_RATING_MIN, RESISTANCE_RATING_MAX).setSyncable(true));
 
     public static final DeferredHolder<Attribute, Attribute> RESISTANCE_LIGHTNING = ATTRIBUTES.register("resistance_lightning",
-            () -> new RangedAttribute("attribute.name.damagenexus.resistance_lightning", 0.0D, -10240.0D, 10240.0D).setSyncable(true));
+            () -> new RangedAttribute("attribute.name.damagenexus.resistance_lightning", 0.0D, RESISTANCE_RATING_MIN, RESISTANCE_RATING_MAX).setSyncable(true));
 
     public static final DeferredHolder<Attribute, Attribute> RESISTANCE_MAGIC = ATTRIBUTES.register("resistance_magic",
-            () -> new RangedAttribute("attribute.name.damagenexus.resistance_magic", 0.0D, -10240.0D, 10240.0D).setSyncable(true));
+            () -> new RangedAttribute("attribute.name.damagenexus.resistance_magic", 0.0D, RESISTANCE_RATING_MIN, RESISTANCE_RATING_MAX).setSyncable(true));
 
     public static final DeferredHolder<Attribute, Attribute> RESISTANCE_WITHER = ATTRIBUTES.register("resistance_wither",
-            () -> new RangedAttribute("attribute.name.damagenexus.resistance_wither", 0.0D, -10240.0D, 10240.0D).setSyncable(true));
+            () -> new RangedAttribute("attribute.name.damagenexus.resistance_wither", 0.0D, RESISTANCE_RATING_MIN, RESISTANCE_RATING_MAX).setSyncable(true));
 
     public static final DeferredHolder<Attribute, Attribute> RESISTANCE_POISON = ATTRIBUTES.register("resistance_poison",
-            () -> new RangedAttribute("attribute.name.damagenexus.resistance_poison", 0.0D, -10240.0D, 10240.0D).setSyncable(true));
+            () -> new RangedAttribute("attribute.name.damagenexus.resistance_poison", 0.0D, RESISTANCE_RATING_MIN, RESISTANCE_RATING_MAX).setSyncable(true));
 
     public static final DeferredHolder<Attribute, Attribute> RESISTANCE_MELEE = ATTRIBUTES.register("resistance_melee",
-            () -> new RangedAttribute("attribute.name.damagenexus.resistance_melee", 0.0D, -10240.0D, 10240.0D).setSyncable(true));
+            () -> new RangedAttribute("attribute.name.damagenexus.resistance_melee", 0.0D, RESISTANCE_RATING_MIN, RESISTANCE_RATING_MAX).setSyncable(true));
 
     public static final DeferredHolder<Attribute, Attribute> RESISTANCE_PROJECTILE = ATTRIBUTES.register("resistance_projectile",
-            () -> new RangedAttribute("attribute.name.damagenexus.resistance_projectile", 0.0D, -10240.0D, 10240.0D).setSyncable(true));
+            () -> new RangedAttribute("attribute.name.damagenexus.resistance_projectile", 0.0D, RESISTANCE_RATING_MIN, RESISTANCE_RATING_MAX).setSyncable(true));
 
     public static final DeferredHolder<Attribute, Attribute> RESISTANCE_KINETIC = ATTRIBUTES.register("resistance_kinetic",
-            () -> new RangedAttribute("attribute.name.damagenexus.resistance_kinetic", 0.0D, -10240.0D, 10240.0D).setSyncable(true));
+            () -> new RangedAttribute("attribute.name.damagenexus.resistance_kinetic", 0.0D, RESISTANCE_RATING_MIN, RESISTANCE_RATING_MAX).setSyncable(true));
 
     public static final DeferredHolder<Attribute, Attribute> THORNS = ATTRIBUTES.register("thorns",
             () -> new RangedAttribute("attribute.name.damagenexus.thorns", 0.0D, 0.0D, 2048.0D).setSyncable(true));

@@ -58,6 +58,7 @@ import io.github.naimjeg.damagenexus.api.rule.source.EquippedItemRuleContributio
 import io.github.naimjeg.damagenexus.api.rule.source.EquippedItemRuleSourceCategory;
 import io.github.naimjeg.damagenexus.api.rule.source.EquippedItemRuleSourceDirection;
 import io.github.naimjeg.damagenexus.api.rule.source.EquippedItemRuleSourceQuery;
+import io.github.naimjeg.damagenexus.command.test.TestItemFactory;
 import io.github.naimjeg.damagenexus.core.config.DamageNexusSettings;
 import io.github.naimjeg.damagenexus.core.gametest.GameTestCodecVerifier;
 import io.github.naimjeg.damagenexus.core.gametest.GameTestServerPlayerFactory;
@@ -3740,11 +3741,63 @@ final class DamageRequestGameTests {
                 1.6666667f, "per-channel plus shared category resistance");
         probe.attacker.setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
 
-        LivingEntity negative = phase8Target(probe);
-        attributes.set(negative, ModAttributes.RESISTANCE_MELEE, -25.0);
-        assertResolved(submitPhase8(probe, negative,
+        LivingEntity channelVulnerability = phase8Target(probe);
+        channelVulnerability.setItemSlot(EquipmentSlot.MAINHAND, ruleStack(
+                "gametest_channel_vulnerability",
+                DamageRuleRole.DEFENSIVE,
+                DamagePhase.MITIGATION_SETUP,
+                List.of(DamageNexusOperations.addChannelMitigation(
+                        DamageChannel.PHYSICAL_ID, -2.0f))));
+        assertResolved(submitPhase8(probe, channelVulnerability,
                 DamageTypes.PLAYER_ATTACK, probe.attacker, null, 4.0f),
-                6.0f, "negative category resistance");
+                12.0f, "channel mitigation vulnerability below negative one");
+
+        LivingEntity channelFullReduction = phase8Target(probe);
+        channelFullReduction.setItemSlot(EquipmentSlot.MAINHAND, ruleStack(
+                "gametest_channel_full_reduction",
+                DamageRuleRole.DEFENSIVE,
+                DamagePhase.MITIGATION_SETUP,
+                List.of(DamageNexusOperations.addChannelMitigation(
+                        DamageChannel.PHYSICAL_ID, 2.0f))));
+        assertPhase8ZeroDamage(probe, channelFullReduction,
+                DamageTypes.PLAYER_ATTACK, probe.attacker, null, 4.0f,
+                "channel mitigation positive upper bound");
+
+        LivingEntity globalVulnerability = phase8Target(probe);
+        globalVulnerability.setItemSlot(EquipmentSlot.MAINHAND, ruleStack(
+                "gametest_global_vulnerability",
+                DamageRuleRole.DEFENSIVE,
+                DamagePhase.MITIGATION_SETUP,
+                List.of(DamageNexusOperations.addGlobalMitigation(-2.0f))));
+        assertResolved(submitPhase8(probe, globalVulnerability,
+                DamageTypes.PLAYER_ATTACK, probe.attacker, null, 4.0f),
+                12.0f, "global mitigation vulnerability below negative one");
+
+        LivingEntity globalFullReduction = phase8Target(probe);
+        globalFullReduction.setItemSlot(EquipmentSlot.MAINHAND, ruleStack(
+                "gametest_global_full_reduction",
+                DamageRuleRole.DEFENSIVE,
+                DamagePhase.MITIGATION_SETUP,
+                List.of(DamageNexusOperations.addGlobalMitigation(2.0f))));
+        assertPhase8ZeroDamage(probe, globalFullReduction,
+                DamageTypes.PLAYER_ATTACK, probe.attacker, null, 4.0f,
+                "global mitigation positive upper bound");
+
+        float resistanceK = Math.max(
+                0.0001f,
+                DamageNexusConfig.current().formulas().resistanceKValue()
+        );
+        for (float rating : List.of(0.0f, -25.0f, -50.0f, -100.0f, -200.0f)) {
+            LivingEntity negative = phase8Target(probe);
+            attributes.set(negative, ModAttributes.RESISTANCE_MELEE, rating);
+            float reduction = rating / resistanceK;
+            assertResolved(submitPhase8(probe, negative,
+                    DamageTypes.PLAYER_ATTACK, probe.attacker, null, 4.0f),
+                    4.0f * (1.0f - reduction),
+                    "negative category resistance " + rating);
+        }
+
+        verifyConvertGainVulnerability(probe, attributes, resistanceK);
 
         LivingEntity bypass = phase8Target(probe);
         attributes.set(bypass, ModAttributes.RESISTANCE_MELEE, 1000.0);
@@ -3756,6 +3809,53 @@ final class DamageRequestGameTests {
                 || !probe.snapshots.isEmpty()) {
             throw new AssertionError(
                     "BYPASSES_RESISTANCE hard-vanilla source changed semantics");
+        }
+    }
+
+    private static void verifyConvertGainVulnerability(
+            SettlementProbe probe,
+            AttributeBaseScope attributes,
+            float resistanceK
+    ) {
+        ItemStack original = probe.attacker.getMainHandItem().copy();
+        try {
+            probe.attacker.setItemSlot(
+                    EquipmentSlot.MAINHAND,
+                    TestItemFactory.convertGainOpsItem()
+            );
+
+            for (float rating : List.of(0.0f, -50.0f, -100.0f, -200.0f)) {
+                LivingEntity target = phase8Target(probe);
+                attributes.set(
+                        target,
+                        ModAttributes.RESISTANCE_LIGHTNING,
+                        rating
+                );
+                float lightningMultiplier = 1.0f - rating / resistanceK;
+                assertResolved(submitPhase8(probe, target,
+                        DamageTypes.PLAYER_ATTACK, probe.attacker, null, 4.0f),
+                        4.0f + lightningMultiplier,
+                        "convert/gain lightning vulnerability " + rating);
+            }
+
+            for (float rating : List.of(0.0f, -50.0f, -100.0f, -200.0f)) {
+                LivingEntity target = phase8Target(probe);
+                attributes.set(
+                        target,
+                        ModAttributes.RESISTANCE_LIGHTNING,
+                        rating
+                );
+                VanillaCritHandler.onVanillaCriticalHit(new CriticalHitEvent(
+                        probe.attacker, target, 1.5f, true));
+                float lightningMultiplier = 1.0f - rating / resistanceK;
+                assertResolved(submitPhase8(probe, target,
+                        DamageTypes.PLAYER_ATTACK, probe.attacker, null, 4.0f),
+                        6.0f + lightningMultiplier,
+                        "critical convert/gain lightning vulnerability " + rating);
+            }
+        } finally {
+            VanillaCritHandler.clear();
+            probe.attacker.setItemSlot(EquipmentSlot.MAINHAND, original);
         }
     }
 
@@ -4172,6 +4272,40 @@ final class DamageRequestGameTests {
         return submitPhase8Result(probe, target, type, attacker, direct,
                 DamageRequestKind.PRIMARY, amount)
                 .settlement().orElseThrow();
+    }
+
+    private static void assertPhase8ZeroDamage(
+            SettlementProbe probe,
+            LivingEntity target,
+            ResourceKey<DamageType> type,
+            LivingEntity attacker,
+            Entity direct,
+            float amount,
+            String scenario
+    ) {
+        probe.clear();
+        DamageRequest.Builder builder = DamageRequest.builder(
+                probe.levelHelper.getLevel(), target,
+                DamageSourceDescriptor.of(type), amount
+        );
+        if (attacker != null) {
+            builder.logicalAttacker(attacker);
+        }
+        if (direct != null) {
+            builder.directEntity(direct);
+        }
+        DamageResult result = DamageNexusApi.submitDamage(builder.build());
+        assertStatus(
+                result,
+                DamageSubmissionStatus.NOT_APPLIED,
+                DamageFailureReason.ZERO_DAMAGE
+        );
+        if (probe.snapshots.size() != 1
+                || probe.snapshots.getFirst().resolvedDamage() != 0.0f) {
+            throw new AssertionError(
+                    scenario + " did not reduce managed damage to zero"
+            );
+        }
     }
 
     private static DamageResult submitPhase8Result(

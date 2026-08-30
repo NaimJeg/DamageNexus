@@ -35,6 +35,8 @@ public final class DamageDummyTestAttribute {
 
     /** Distinctive nonzero default, deliberately unlike any production value. */
     public static final double DEFAULT_BASE = 7.0D;
+    public static final double TEST_MIN = 0.0D;
+    public static final double TEST_MAX = 1024.0D;
 
     public static final Identifier ID = Identifier.fromNamespaceAndPath(
             DamageNexus.MODID,
@@ -58,8 +60,8 @@ public final class DamageDummyTestAttribute {
                 () -> new RangedAttribute(
                         "attribute.name.damagenexus.damage_dummy_test_attribute",
                         DEFAULT_BASE,
-                        0.0D,
-                        1024.0D
+                        TEST_MIN,
+                        TEST_MAX
                 )
         );
     }

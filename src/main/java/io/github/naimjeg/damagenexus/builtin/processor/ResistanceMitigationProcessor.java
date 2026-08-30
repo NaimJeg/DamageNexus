@@ -140,6 +140,11 @@ public class ResistanceMitigationProcessor implements DamagePhaseProcessor {
         return (float) total;
     }
 
+    /**
+     * Positive ratings use the asymptotic rating / (rating + K) formula and
+     * cap at 95% reduction. Negative ratings use rating / K, so they express
+     * vulnerability without a gameplay-scale negative reduction cap.
+     */
     static float reductionFor(float rating, float kValue) {
         double safeRating = finiteOrZero(rating);
         double safeK = Float.isFinite(kValue)
@@ -148,7 +153,13 @@ public class ResistanceMitigationProcessor implements DamagePhaseProcessor {
         double reduction = safeRating >= 0.0d
                 ? safeRating / (safeRating + safeK)
                 : safeRating / safeK;
-        return (float) Math.max(-1.0d, Math.min(0.95d, reduction));
+
+        // Preserve the positive safety cap while allowing negative ratings to
+        // express unbounded vulnerability within the finite float domain.
+        return (float) Math.max(
+                -Float.MAX_VALUE,
+                Math.min(0.95d, reduction)
+        );
     }
 
     static boolean sameAttribute(

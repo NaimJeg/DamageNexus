@@ -902,7 +902,9 @@ final class DamageDummyGameTests {
         }
 
         // Normal Attribute validation must still apply: RangedAttribute clamps
-        // the effective value to its declared maximum (1024 for MAX_HEALTH).
+        // the effective value to MAX_HEALTH's own declared maximum.
+        float expectedMaximum = (float) Attributes.MAX_HEALTH.value()
+                .sanitizeValue(Double.MAX_VALUE);
         if (!DamageDummyAttributes.setBaseValue(
                 dummy,
                 MAX_HEALTH_KEY,
@@ -910,7 +912,7 @@ final class DamageDummyGameTests {
         )) {
             throw new AssertionError("setBaseValue failed for MAX_HEALTH");
         }
-        if (dummy.getMaxHealth() != 1024.0F) {
+        if (dummy.getMaxHealth() != expectedMaximum) {
             throw new AssertionError(
                     "out-of-range base value bypassed attribute validation"
             );

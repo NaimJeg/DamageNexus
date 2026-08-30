@@ -5,6 +5,9 @@ import io.github.naimjeg.damagenexus.block.DamageDummyBlock;
 import io.github.naimjeg.damagenexus.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
@@ -15,6 +18,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.common.Tags;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Optional;
@@ -52,10 +56,12 @@ import java.util.Optional;
  * summoned ({@code /summon}) dummy has no anchor and keeps the original
  * standalone behavior, including normal death.</p>
  *
- * <p>Ownership model: {@link DamageDummyBlockEntity} is the primary lifecycle
- * controller for anchored dummies. An anchored {@code DamageDummyEntity}
- * additionally performs fail-closed self-validation: if its anchor block is
- * absent while the entity is ticking, it discards itself. An anchored dummy
+ * <p>Ownership model: the block, block entity and anchored entity form one
+ * logical lifecycle pair. The block entity performs periodic ownership
+ * reconciliation, while terminal external entity removal destroys the
+ * pedestal. An anchored {@code DamageDummyEntity} also performs fail-closed
+ * self-validation: if its anchor block is absent while the entity is ticking,
+ * it discards itself without a redundant reverse cleanup. An anchored dummy
  * never transitions into a standalone dummy because its pedestal disappears;
  * the pedestal either exists (owned anchored entity) or does not (owned
  * entity discarded). Standalone dummies never participate in pedestal
@@ -75,6 +81,13 @@ public class DamageDummyEntity extends LivingEntity {
      * result before health returns to maximum.
      */
     private boolean pendingAnchorRestore;
+
+    /**
+     * Runtime-only recursion guard for pedestal-owned cleanup. Destroying a
+     * pedestal discards all of its anchored entities; those removals must not
+     * try to destroy the pedestal that is already being removed.
+     */
+    private boolean suppressAnchorDestructionOnRemoval;
 
     public DamageDummyEntity(EntityType<? extends DamageDummyEntity> type, Level level) {
         super(type, level);
@@ -197,7 +210,7 @@ public class DamageDummyEntity extends LivingEntity {
         }
         if (!this.level().getBlockState(this.anchorPos)
                 .is(ModBlocks.DAMAGE_DUMMY.get())) {
-            this.discard();
+            this.discardWithoutAnchorDestruction();
             return;
         }
 
@@ -220,6 +233,13 @@ public class DamageDummyEntity extends LivingEntity {
             this.setYBodyRot(yaw);
         }
 
+        // Forced/technical death calls super.die and must keep zero health so
+        // vanilla tickDeath can reach terminal KILLED removal. Ordinary
+        // anchored lethal damage is raised to one health in die(), so it
+        // remains eligible for the normal deferred restore below.
+        if (this.isDeadOrDying()) {
+            return;
+        }
         if (this.pendingAnchorRestore) {
             this.setHealth(this.getMaxHealth());
             this.pendingAnchorRestore = false;
@@ -230,10 +250,11 @@ public class DamageDummyEntity extends LivingEntity {
     }
 
     /**
-     * Terminal death guard. Standalone dummies die exactly as before. For
-     * anchored dummies the already-applied attack is never rejected and
-     * {@code super.die} is deliberately not called, which in the 26.1.2
-     * LivingEntity death path means:
+     * Ordinary-damage death guard. Standalone dummies and forced/technical
+     * anchored deaths delegate to vanilla. For an anchored ordinary hit the
+     * already-applied attack is never rejected and {@code super.die} is
+     * deliberately not called, which in the 26.1.2 LivingEntity death path
+     * means:
      *
      * <ul>
      *   <li>{@code dead} flag stays {@code false} (only {@code super.die}
@@ -252,12 +273,59 @@ public class DamageDummyEntity extends LivingEntity {
      */
     @Override
     public void die(DamageSource source) {
-        if (this.isAnchored()) {
+        if (this.isAnchored() && isOrdinaryDamage(source)) {
             this.setHealth(1.0F);
             this.pendingAnchorRestore = true;
             return;
         }
         super.die(source);
+    }
+
+    /**
+     * Owner/internal cleanup path. Removal remains a normal synchronous
+     * {@link #discard()}, but it cannot initiate the reverse entity-to-anchor
+     * half of the logical-pair lifecycle.
+     */
+    public void discardWithoutAnchorDestruction() {
+        this.suppressAnchorDestructionOnRemoval = true;
+        try {
+            this.discard();
+        } finally {
+            this.suppressAnchorDestructionOnRemoval = false;
+        }
+    }
+
+    /**
+     * Terminal external removal ends the logical pair. The parent removal is
+     * deliberately completed first so pedestal cleanup sees this entity as
+     * already removed and cannot re-enter its removal path.
+     */
+    @Override
+    public void remove(Entity.RemovalReason reason) {
+        boolean firstRemoval = !this.isRemoved();
+        super.remove(reason);
+
+        if (firstRemoval
+                && !this.suppressAnchorDestructionOnRemoval
+                && (reason == Entity.RemovalReason.KILLED
+                || reason == Entity.RemovalReason.DISCARDED)) {
+            this.destroyAnchorPedestal();
+        }
+    }
+
+    private void destroyAnchorPedestal() {
+        if (!(this.level() instanceof ServerLevel serverLevel)
+                || this.anchorPos == null
+                || !serverLevel.getBlockState(this.anchorPos)
+                .is(ModBlocks.DAMAGE_DUMMY.get())) {
+            return;
+        }
+        serverLevel.destroyBlock(this.anchorPos, true);
+    }
+
+    private static boolean isOrdinaryDamage(DamageSource source) {
+        return !source.is(Tags.DamageTypes.IS_TECHNICAL)
+                && !source.is(DamageTypeTags.BYPASSES_INVULNERABILITY);
     }
 
     @Override

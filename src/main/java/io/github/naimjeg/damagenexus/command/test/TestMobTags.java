@@ -6,7 +6,9 @@ import net.minecraft.world.entity.Entity;
 public final class TestMobTags {
 
     public static final String TEST_ENTITY = "damagenexus_test_entity";
+    /** Ordinary-gameplay-damage death protection, not removal immunity. */
     public static final String IMMORTAL = "damagenexus_test_immortal";
+    /** Pending restore for one cancelled ordinary lethal damage transaction. */
     public static final String PENDING_IMMORTAL_RESTORE =
             "damagenexus_test_immortal_pending_restore";
 

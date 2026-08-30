@@ -35,8 +35,9 @@ import org.jspecify.annotations.Nullable;
 /**
  * Physical pedestal for the damage dummy.
  *
- * <p>This block is a low-profile 14x2x14 pressure-plate-like base. It owns
- * the anchor lifecycle through its {@link DamageDummyBlockEntity}; the real
+ * <p>This block is a low-profile 14x1x14 pressure-plate-like base. It owns
+ * one half of the anchor lifecycle through its
+ * {@link DamageDummyBlockEntity}; the real
  * combat target is the {@code DamageDummyEntity} standing directly on top of
  * the plate. The block itself has a fixed collision/selection shape so the
  * player can aim at and mine the pedestal independently of the entity, and
@@ -54,13 +55,13 @@ public class DamageDummyBlock extends BaseEntityBlock {
 
     /**
      * Single authoritative height of the pedestal plate in block units
-     * (2/16 of a block). The anchored dummy's feet are placed at exactly this
-     * height above the anchor block; never duplicate {@code 0.125},
-     * {@code 2 / 16} or {@code 0.5} anywhere else.
+     * (1/16 of a block). The anchored dummy's feet are placed at exactly this
+     * height above the anchor block; never duplicate {@code 0.0625},
+     * {@code 1 / 16} or {@code 0.5} anywhere else.
      */
     public static final double BASE_HEIGHT = 1.0D / 16.0D;
 
-    /** Low-profile plate: 14x2x14, centered horizontally in the block. */
+    /** Low-profile plate: 14x1x14, centered horizontally in the block. */
     private static final VoxelShape SHAPE = Block.box(
             1.0D, 0.0D, 1.0D,
             15.0D, 1.0D, 15.0D

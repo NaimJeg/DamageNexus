@@ -22,6 +22,8 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.permissions.PermissionSet;
+import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.Mob;
@@ -37,6 +39,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 import net.neoforged.neoforge.gametest.GameTestHooks;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import net.neoforged.neoforge.common.Tags;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -44,6 +47,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
 /** Real-server coverage for positioned and immortal command test mobs. */
@@ -56,6 +60,10 @@ final class TestMobExhibitGameTests {
             LIFECYCLE_FUNCTION = functionKey("test_mob_exhibit_lifecycle");
     private static final ResourceKey<Consumer<GameTestHelper>>
             ADMIN_FUNCTION = functionKey("test_mob_exhibit_admin");
+    private static final ResourceKey<Consumer<GameTestHelper>>
+            FORCED_REMOVAL_FUNCTION = functionKey(
+            "test_mob_exhibit_forced_removal"
+    );
 
     private static UUID settlementTarget;
     private static boolean settlementObserved;
@@ -84,6 +92,11 @@ final class TestMobExhibitGameTests {
                 ADMIN_FUNCTION.identifier(),
                 () -> TestMobExhibitGameTests::administratorControls
         );
+        event.register(
+                Registries.TEST_FUNCTION,
+                FORCED_REMOVAL_FUNCTION.identifier(),
+                () -> TestMobExhibitGameTests::forcedDeathAndRemoval
+        );
     }
 
     @SubscribeEvent
@@ -96,6 +109,7 @@ final class TestMobExhibitGameTests {
         registerTest(event, environment, COMMANDS_FUNCTION);
         registerTest(event, environment, LIFECYCLE_FUNCTION);
         registerTest(event, environment, ADMIN_FUNCTION);
+        registerTest(event, environment, FORCED_REMOVAL_FUNCTION);
     }
 
     @SubscribeEvent
@@ -364,6 +378,88 @@ final class TestMobExhibitGameTests {
         helper.succeed();
     }
 
+    /**
+     * The vanilla /kill command reaches LivingEntity.kill, which applies the
+     * generic-kill source through the full damage/death pipeline. In 26.1.2
+     * that source is both NeoForge technical damage and vanilla
+     * bypass-invulnerability damage, so it exercises both exclusions from
+     * ordinary exhibit protection. Direct discard and cleanup remain removal
+     * operations and must never participate in restore semantics.
+     */
+    private static void forcedDeathAndRemoval(GameTestHelper helper) {
+        GameTestCodecVerifier.verifyFunctionInstance(helper);
+        ServerLevel level = helper.getLevel();
+        Vec3 position = helper.absolutePos(
+                new BlockPos(1, 2, 1)
+        ).getBottomCenter();
+        Mob killTarget = successfulSpawn(
+                level,
+                TestMobPreset.BASELINE,
+                position,
+                TestMobSpawnOptions.IMMORTAL_EXHIBIT
+        );
+        UUID killedUuid = killTarget.getUUID();
+        DamageSource genericKill = killTarget.damageSources().genericKill();
+        require(genericKill.is(Tags.DamageTypes.IS_TECHNICAL),
+                "generic-kill is not tagged as technical damage");
+        require(genericKill.is(DamageTypeTags.BYPASSES_INVULNERABILITY),
+                "generic-kill does not bypass invulnerability");
+
+        int result = execute(
+                level.getServer().getCommands().getDispatcher(),
+                "kill @e[tag=" + TestMobTags.IMMORTAL
+                        + ",distance=..2,limit=1]",
+                source(level, position)
+        );
+        require(result == 1, "/kill did not select exactly one exhibit");
+        require(killTarget.isDeadOrDying(),
+                "/kill was canceled by immortal exhibit protection");
+        require(!killTarget.entityTags().contains(
+                        TestMobTags.PENDING_IMMORTAL_RESTORE),
+                "/kill left a pending immortal restore marker");
+
+        pollUntil(
+                helper,
+                50,
+                () -> killTarget.isRemoved()
+                        && level.getEntity(killedUuid) == null,
+                "/kill target was restored instead of removed",
+                () -> {
+                    Mob discarded = successfulSpawn(
+                            level,
+                            TestMobPreset.BASELINE,
+                            position.add(2, 0, 0),
+                            TestMobSpawnOptions.IMMORTAL_EXHIBIT
+                    );
+                    UUID discardedUuid = discarded.getUUID();
+                    discarded.discard();
+                    require(discarded.isRemoved(),
+                            "discard did not remove the exhibit immediately");
+
+                    Mob cleanupTarget = successfulSpawn(
+                            level,
+                            TestMobPreset.BASELINE,
+                            position.add(4, 0, 0),
+                            TestMobSpawnOptions.IMMORTAL_EXHIBIT
+                    );
+                    UUID cleanupUuid = cleanupTarget.getUUID();
+                    require(DamageCleanupCommands.forceRemoveTestEntity(
+                                    cleanupTarget),
+                            "cleanup did not recognize the immortal exhibit");
+                    require(cleanupTarget.isRemoved(),
+                            "cleanup did not remove the exhibit immediately");
+
+                    helper.runAfterDelay(2, () -> {
+                        require(level.getEntity(discardedUuid) == null,
+                                "discarded exhibit reappeared on a later tick");
+                        require(level.getEntity(cleanupUuid) == null,
+                                "cleaned exhibit reappeared on a later tick");
+                        helper.succeed();
+                    });
+                }
+        );
+    }
+
     private static CommandDispatcher<CommandSourceStack> dispatcher() {
         CommandDispatcher<CommandSourceStack> dispatcher =
                 new CommandDispatcher<>();
@@ -492,6 +588,30 @@ final class TestMobExhibitGameTests {
 
     private static boolean close(double left, double right) {
         return Math.abs(left - right) <= 1.0E-6D;
+    }
+
+    private static void pollUntil(
+            GameTestHelper helper,
+            int attempts,
+            BooleanSupplier condition,
+            String failureMessage,
+            Runnable onSuccess
+    ) {
+        if (condition.getAsBoolean()) {
+            onSuccess.run();
+            return;
+        }
+        if (attempts <= 0) {
+            helper.fail(failureMessage);
+            return;
+        }
+        helper.runAfterDelay(1, () -> pollUntil(
+                helper,
+                attempts - 1,
+                condition,
+                failureMessage,
+                onSuccess
+        ));
     }
 
     private static void require(boolean condition, String message) {

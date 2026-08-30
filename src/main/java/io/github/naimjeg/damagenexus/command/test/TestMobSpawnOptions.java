@@ -11,6 +11,12 @@ import net.minecraft.world.phys.Vec3;
 /** Configuration applied before a test mob is added to its server level. */
 public enum TestMobSpawnOptions {
     DEFAULT(false),
+
+    /**
+     * Keeps an exhibit alive through ordinary gameplay damage after the full
+     * damage pipeline runs. Administrative/technical death and direct entity
+     * removal remain authoritative; this is not unconditional immortality.
+     */
     IMMORTAL_EXHIBIT(true);
 
     private static final Identifier EXHIBIT_KNOCKBACK_RESISTANCE_ID =

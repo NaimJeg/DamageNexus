@@ -13,7 +13,7 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 /**
  * DamageNexus block registry.
  *
- * <p>Only the damage dummy pedestal is registered: a low-profile 14x2x14
+ * <p>Only the damage dummy pedestal is registered: a low-profile 14x1x14
  * pressure-plate-like base that physically anchors the
  * {@code DamageDummyEntity} standing directly on top of it. The block is the
  * lifecycle owner and the management-menu interaction surface; the entity

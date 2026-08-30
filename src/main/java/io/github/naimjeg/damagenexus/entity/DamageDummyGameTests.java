@@ -30,6 +30,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -133,9 +134,14 @@ final class DamageDummyGameTests {
             id("damage_dummy_block_reload_reconcile")
     );
     private static final ResourceKey<Consumer<GameTestHelper>>
-            BLOCK_ORPHAN_REPAIR_FUNCTION = ResourceKey.create(
+            EXTERNAL_DISCARD_FUNCTION = ResourceKey.create(
             Registries.TEST_FUNCTION,
-            id("damage_dummy_block_orphan_repair")
+            id("damage_dummy_external_discard")
+    );
+    private static final ResourceKey<Consumer<GameTestHelper>>
+            KILL_FUNCTION = ResourceKey.create(
+            Registries.TEST_FUNCTION,
+            id("damage_dummy_kill")
     );
     private static final ResourceKey<Consumer<GameTestHelper>>
             BLOCK_DUPLICATE_REPAIR_FUNCTION = ResourceKey.create(
@@ -161,6 +167,11 @@ final class DamageDummyGameTests {
             DESTROY_DUPLICATES_FUNCTION = ResourceKey.create(
             Registries.TEST_FUNCTION,
             id("damage_dummy_destroy_duplicates")
+    );
+    private static final ResourceKey<Consumer<GameTestHelper>>
+            BOUND_REPLACEMENT_FUNCTION = ResourceKey.create(
+            Registries.TEST_FUNCTION,
+            id("damage_dummy_bound_replacement_rejected")
     );
     private static final ResourceKey<Consumer<GameTestHelper>>
             STANDALONE_UNAFFECTED_FUNCTION = ResourceKey.create(
@@ -290,8 +301,13 @@ final class DamageDummyGameTests {
         );
         event.register(
                 Registries.TEST_FUNCTION,
-                BLOCK_ORPHAN_REPAIR_FUNCTION.identifier(),
-                () -> DamageDummyGameTests::damageDummyBlockOrphanRepair
+                EXTERNAL_DISCARD_FUNCTION.identifier(),
+                () -> DamageDummyGameTests::damageDummyExternalDiscard
+        );
+        event.register(
+                Registries.TEST_FUNCTION,
+                KILL_FUNCTION.identifier(),
+                () -> DamageDummyGameTests::damageDummyKill
         );
         event.register(
                 Registries.TEST_FUNCTION,
@@ -317,6 +333,11 @@ final class DamageDummyGameTests {
                 Registries.TEST_FUNCTION,
                 DESTROY_DUPLICATES_FUNCTION.identifier(),
                 () -> DamageDummyGameTests::damageDummyDestroyDuplicates
+        );
+        event.register(
+                Registries.TEST_FUNCTION,
+                BOUND_REPLACEMENT_FUNCTION.identifier(),
+                () -> DamageDummyGameTests::damageDummyBoundReplacementRejected
         );
         event.register(
                 Registries.TEST_FUNCTION,
@@ -450,8 +471,14 @@ final class DamageDummyGameTests {
         registerBlockTest(
                 event,
                 environment,
-                "damage_dummy_block_orphan_repair",
-                BLOCK_ORPHAN_REPAIR_FUNCTION
+                "damage_dummy_external_discard",
+                EXTERNAL_DISCARD_FUNCTION
+        );
+        registerBlockTest(
+                event,
+                environment,
+                "damage_dummy_kill",
+                KILL_FUNCTION
         );
         registerBlockTest(
                 event,
@@ -482,6 +509,12 @@ final class DamageDummyGameTests {
                 environment,
                 "damage_dummy_destroy_duplicates",
                 DESTROY_DUPLICATES_FUNCTION
+        );
+        registerBlockTest(
+                event,
+                environment,
+                "damage_dummy_bound_replacement_rejected",
+                BOUND_REPLACEMENT_FUNCTION
         );
         registerBlockTest(
                 event,
@@ -1455,8 +1488,9 @@ final class DamageDummyGameTests {
     /**
      * D: reload reconciliation. After a simulated reload where the linked
      * entity has not loaded yet, the first reconciliation must not spawn a
-     * replacement (that would race with the delayed entity and duplicate it);
-     * a later reconciliation repairs a still-missing entity exactly once.
+     * replacement or destroy the pedestal. A later reconciliation treats the
+     * still-missing persisted identity as a broken logical pair and destroys
+     * the pedestal without resurrection.
      *
      * <p>The reconciliation phase is driven deterministically through
      * {@link DamageDummyBlockEntity#reconcileNow} instead of waiting for the
@@ -1492,7 +1526,7 @@ final class DamageDummyGameTests {
             // loaded yet (removed from the level), while the ownership state
             // (linked UUID) is already known to a fresh block entity that has
             // never reconciled.
-            original.discard();
+            original.remove(Entity.RemovalReason.UNLOADED_TO_CHUNK);
             DamageDummyBlockEntity reloaded = DamageDummyBlockEntity
                     .createUnreconciled(
                     absolute,
@@ -1513,54 +1547,86 @@ final class DamageDummyGameTests {
                             + "unresolved ownership window")) {
                 return;
             }
-
-            // Later reconciliation: still unresolved, so it must repair the
-            // missing entity exactly once.
-            reloaded.reconcileNow(helper.getLevel());
-            List<DamageDummyEntity> repaired = anchoredDummies(helper, pos);
-            if (!require(helper, repaired.size() == 1,
-                    "reload reconciliation did not produce exactly one "
-                            + "dummy")) {
+            if (!require(helper,
+                    helper.getBlockState(pos).is(ModBlocks.DAMAGE_DUMMY.get()),
+                    "first unresolved reconciliation destroyed the pedestal")) {
                 return;
             }
             if (!require(helper,
-                    !repaired.get(0).getUUID().equals(originalUuid),
-                    "reload reconciliation did not replace the missing "
-                            + "entity")) {
+                    originalUuid.equals(reloaded.linkedDummyUuid()),
+                    "first unresolved reconciliation cleared the bound UUID")) {
+                return;
+            }
+
+            // Later reconciliation: still unresolved, so the persisted bound
+            // identity terminates the logical pair. No replacement is legal.
+            reloaded.reconcileNow(helper.getLevel());
+            if (!require(helper,
+                    !helper.getBlockState(pos).is(ModBlocks.DAMAGE_DUMMY.get()),
+                    "later unresolved reconciliation kept the broken pedestal")) {
+                return;
+            }
+            if (!require(helper, anchoredDummies(helper, pos).isEmpty(),
+                    "bound-missing reconciliation spawned a replacement")) {
                 return;
             }
             helper.succeed();
         });
     }
 
-    /** D: removing the entity administratively is repaired by the block. */
-    private static void damageDummyBlockOrphanRepair(GameTestHelper helper) {
+    /** External discard immediately terminates both halves of the pair. */
+    private static void damageDummyExternalDiscard(GameTestHelper helper) {
         GameTestCodecVerifier.verifyFunctionInstance(helper);
         BlockPos pos = blockTestPos();
         helper.setBlock(pos, ModBlocks.DAMAGE_DUMMY.get());
         helper.runAfterDelay(60, () -> {
             List<DamageDummyEntity> dummies = anchoredDummies(helper, pos);
             if (!require(helper, dummies.size() == 1,
-                    "expected one anchored dummy before orphan repair")) {
+                    "expected one anchored dummy before external discard")) {
                 return;
             }
             DamageDummyEntity removed = dummies.get(0);
-            UUID oldUuid = removed.getUUID();
             removed.discard();
-            helper.runAfterDelay(70, () -> {
-                List<DamageDummyEntity> repaired =
-                        anchoredDummies(helper, pos);
-                if (!require(helper, repaired.size() == 1,
-                        "orphan repair did not recreate exactly one dummy")) {
-                    return;
-                }
-                if (!require(helper,
-                        !repaired.get(0).getUUID().equals(oldUuid),
-                        "orphan repair kept the removed entity")) {
-                    return;
-                }
-                helper.succeed();
-            });
+            pollUntil(
+                    helper,
+                    10,
+                    () -> removed.isRemoved()
+                            && !helper.getBlockState(pos)
+                            .is(ModBlocks.DAMAGE_DUMMY.get())
+                            && anchoredDummies(helper, pos).isEmpty(),
+                    "external discard did not terminate the pedestal pair",
+                    helper::succeed
+            );
+        });
+    }
+
+    /** LivingEntity.kill uses generic-kill damage, then KILLED removal. */
+    private static void damageDummyKill(GameTestHelper helper) {
+        GameTestCodecVerifier.verifyFunctionInstance(helper);
+        BlockPos pos = blockTestPos();
+        helper.setBlock(pos, ModBlocks.DAMAGE_DUMMY.get());
+        helper.runAfterDelay(60, () -> {
+            List<DamageDummyEntity> dummies = anchoredDummies(helper, pos);
+            if (!require(helper, dummies.size() == 1,
+                    "expected one anchored dummy before kill")) {
+                return;
+            }
+            DamageDummyEntity killed = dummies.get(0);
+            killed.kill(helper.getLevel());
+            if (!require(helper, killed.isDeadOrDying(),
+                    "generic-kill damage was incorrectly protected")) {
+                return;
+            }
+            pollUntil(
+                    helper,
+                    35,
+                    () -> killed.isRemoved()
+                            && !helper.getBlockState(pos)
+                            .is(ModBlocks.DAMAGE_DUMMY.get())
+                            && anchoredDummies(helper, pos).isEmpty(),
+                    "kill did not terminate the pedestal pair",
+                    helper::succeed
+            );
         });
     }
 
@@ -1575,6 +1641,8 @@ final class DamageDummyGameTests {
                     "expected one anchored dummy before duplicate test")) {
                 return;
             }
+            DamageDummyEntity bound = anchoredDummies(helper, pos).get(0);
+            UUID boundUuid = bound.getUUID();
             DamageDummyEntity duplicate = spawnDummy(helper, pos);
             duplicate.bindToAnchor(absolute, 0.0F);
             if (!require(helper, anchoredDummies(helper, pos).size() == 2,
@@ -1586,6 +1654,24 @@ final class DamageDummyGameTests {
                         anchoredDummies(helper, pos);
                 if (!require(helper, survivors.size() == 1,
                         "duplicate repair did not reduce to one dummy")) {
+                    return;
+                }
+                if (!require(helper,
+                        helper.getBlockState(pos).is(ModBlocks.DAMAGE_DUMMY.get()),
+                        "duplicate cleanup destroyed the pedestal")) {
+                    return;
+                }
+                DamageDummyBlockEntity blockEntity = helper.getBlockEntity(
+                        pos,
+                        DamageDummyBlockEntity.class
+                );
+                if (!require(helper,
+                        survivors.get(0) == bound
+                                && !bound.isRemoved()
+                                && duplicate.isRemoved()
+                                && blockEntity != null
+                                && boundUuid.equals(blockEntity.linkedDummyUuid()),
+                        "duplicate cleanup did not preserve the bound keeper")) {
                     return;
                 }
                 if (!require(helper, survivors.get(0).isAnchoredAt(absolute),
@@ -1800,6 +1886,43 @@ final class DamageDummyGameTests {
                         helper.succeed();
                     }
             ));
+        });
+    }
+
+    /** A duplicate cannot replace an already-established bound UUID. */
+    private static void damageDummyBoundReplacementRejected(
+            GameTestHelper helper
+    ) {
+        GameTestCodecVerifier.verifyFunctionInstance(helper);
+        BlockPos pos = blockTestPos();
+        BlockPos absolute = helper.absolutePos(pos);
+        helper.setBlock(pos, ModBlocks.DAMAGE_DUMMY.get());
+        helper.runAfterDelay(60, () -> {
+            List<DamageDummyEntity> initial = anchoredDummies(helper, pos);
+            if (!require(helper, initial.size() == 1,
+                    "expected one bound dummy before replacement test")) {
+                return;
+            }
+            DamageDummyEntity bound = initial.get(0);
+            DamageDummyEntity replacement = spawnDummy(helper, pos);
+            replacement.bindToAnchor(absolute, 0.0F);
+            if (!require(helper, anchoredDummies(helper, pos).size() == 2,
+                    "replacement candidate was not anchored")) {
+                return;
+            }
+
+            bound.discard();
+            pollUntil(
+                    helper,
+                    10,
+                    () -> bound.isRemoved()
+                            && replacement.isRemoved()
+                            && !helper.getBlockState(pos)
+                            .is(ModBlocks.DAMAGE_DUMMY.get())
+                            && anchoredDummies(helper, pos).isEmpty(),
+                    "bound removal silently adopted the replacement candidate",
+                    helper::succeed
+            );
         });
     }
 
@@ -2190,8 +2313,8 @@ final class DamageDummyGameTests {
     private static void damageDummyBlockClearance(GameTestHelper helper) {
         GameTestCodecVerifier.verifyFunctionInstance(helper);
         BlockPos pos = blockTestPos();
-        // The dummy stands on the 2/16 plate (feet at Y + BASE_HEIGHT, body
-        // 1.8 tall, top at Y + 1.925), so a ceiling one block above the plate
+        // The dummy stands on the 1/16 plate (feet at Y + BASE_HEIGHT, body
+        // 1.8 tall, top at Y + 1.8625), so a ceiling one block above the plate
         // still intersects the entity volume.
         BlockPos ceiling = pos.offset(0, 1, 0);
         BlockPos absolute = helper.absolutePos(pos);

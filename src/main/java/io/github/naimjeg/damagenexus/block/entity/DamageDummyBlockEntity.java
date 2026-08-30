@@ -36,8 +36,9 @@ import java.util.UUID;
  *
  * <p>This block entity is deliberately NOT an attribute store. It only
  * persists the linked entity's {@link UUID} (never the transient numeric
- * entity id), guarantees exactly one anchored dummy per pedestal, repairs
- * orphaned/missing/duplicate relationships after reload or administration,
+ * entity id), guarantees exactly one anchored dummy per pedestal, establishes
+ * fresh/adopted ownership, reconciles duplicates and terminates a previously
+ * bound pair whose entity is permanently missing,
  * and discards every owned entity when the physical block is actually
  * removed. It is the primary lifecycle controller: anchored dummies are
  * synthetic state belonging to the physical pedestal block. An anchored
@@ -59,9 +60,10 @@ public class DamageDummyBlockEntity extends BlockEntity implements MenuProvider 
      * Stateful guard against the chunk-load race ONLY. A freshly deserialized
      * block entity begins with this flag {@code false}; the first
      * reconciliation after a chunk reload observes a missing entity and only
-     * records completion, and only a LATER reconciliation spawns a
-     * replacement. That deferral prevents duplicating a linked entity that
-     * merely loads a moment after this block entity ticks.
+     * records completion. A later reconciliation may spawn for a still-UNBOUND
+     * pedestal, but a persisted bound UUID that remains missing terminates the
+     * pedestal instead. That deferral prevents treating a linked entity that
+     * merely loads a moment later as terminally missing.
      *
      * <p>Fresh BlockItem placement never enters this grace phase: it is
      * initialized synchronously through
@@ -183,7 +185,8 @@ public class DamageDummyBlockEntity extends BlockEntity implements MenuProvider 
     /**
      * Test support: runs exactly one ownership reconciliation immediately.
      * This lets the reload-race GameTest observe the first (deferring) and a
-     * later (spawning) reconciliation deterministically instead of depending
+     * later (terminating when bound, spawning when unbound) reconciliation
+     * deterministically instead of depending
      * on the 20-tick ticker cadence.
      */
     public void reconcileNow(ServerLevel level) {
@@ -203,11 +206,10 @@ public class DamageDummyBlockEntity extends BlockEntity implements MenuProvider 
      * such ambiguity, so the ownership link is established during the
      * placement action itself.</p>
      *
-     * <p>Idempotent by construction: a valid linked keeper is kept, otherwise
-     * a single deterministic local anchored dummy is adopted, and only when
-     * no anchored dummy exists at all is exactly one spawned. Duplicate
-     * invocation therefore converges to the same single keeper instead of
-     * spawning extras.</p>
+     * <p>Idempotent by construction: a valid linked keeper is kept. A fresh
+     * unbound pedestal adopts one deterministic local anchored dummy, or
+     * spawns exactly one when none exists. A previously bound but invalid
+     * identity terminates instead of being replaced.</p>
      *
      * <p>If the immediate spawn fails (clearance became invalid, entity
      * creation returned null, or {@code addFreshEntity} failed), the block is
@@ -230,9 +232,16 @@ public class DamageDummyBlockEntity extends BlockEntity implements MenuProvider 
             return;
         }
 
+        boolean wasBound = this.linkedDummyUuid != null;
+
         // Idempotency check 2: a valid linked keeper is kept as-is.
         DamageDummyEntity keeper = this.resolveLinkedKeeper(level, pos);
         List<DamageDummyEntity> anchored = this.findAnchoredDummies(level, pos);
+
+        if (wasBound && keeper == null) {
+            this.destroyBrokenPair(level, pos);
+            return;
+        }
 
         // Idempotency check 3: adopt exactly one anchored dummy if one (or
         // more) already exists, discarding duplicates deterministically.
@@ -298,7 +307,7 @@ public class DamageDummyBlockEntity extends BlockEntity implements MenuProvider 
             if (resolved instanceof DamageDummyEntity dummy
                     && dummy.isAnchoredAt(anchorPos)
                     && !dummy.isRemoved()) {
-                dummy.discard();
+                dummy.discardWithoutAnchorDestruction();
             }
         }
 
@@ -308,7 +317,7 @@ public class DamageDummyBlockEntity extends BlockEntity implements MenuProvider 
                 dummy -> dummy.isAnchoredAt(anchorPos) && !dummy.isRemoved()
         );
         for (DamageDummyEntity dummy : local) {
-            dummy.discard();
+            dummy.discardWithoutAnchorDestruction();
         }
 
         this.linkedDummyUuid = null;
@@ -321,13 +330,16 @@ public class DamageDummyBlockEntity extends BlockEntity implements MenuProvider 
      * <ol>
      *   <li>confirm this block entity still belongs to {@code DamageDummyBlock};</li>
      *   <li>resolve the stored UUID and keep that entity when valid;</li>
-     *   <li>otherwise search only a small AABB around the pedestal;</li>
-     *   <li>adopt the single found anchored dummy;</li>
+     *   <li>if a persisted UUID remains unresolved after reload grace,
+     *       destroy the pedestal without adopting or spawning a replacement;</li>
+     *   <li>only for an unbound pedestal, search a small AABB and adopt the
+     *       single found anchored dummy;</li>
      *   <li>when several exist, keep one deterministically and discard the rest;</li>
      *   <li>when none exists, the first reconciliation after a chunk reload
      *       only records that the initial sync is complete; second and later
-     *       reconciliations spawn a replacement (only if there is enough free
-     *       space). Fresh BlockItem placement bypasses this deferral through
+     *       reconciliations spawn an initial entity for an unbound pedestal
+     *       (only if there is enough free space). Fresh BlockItem placement
+     *       bypasses this deferral through
      *       {@link #initializeFreshPlacement}.</li>
      * </ol>
      */
@@ -350,6 +362,20 @@ public class DamageDummyBlockEntity extends BlockEntity implements MenuProvider 
             return;
         }
 
+        if (this.linkedDummyUuid != null) {
+            // A persisted UUID is the durable evidence that this pedestal was
+            // already bound. Do not clear it on a temporarily unresolved
+            // lookup: the first reconciliation is reload grace, and a later
+            // miss terminates the pair instead of resurrecting a new UUID or
+            // adopting a nearby duplicate.
+            if (this.initialSyncCompleted) {
+                this.destroyBrokenPair(level, pos);
+            } else {
+                this.initialSyncCompleted = true;
+            }
+            return;
+        }
+
         if (anchored.isEmpty()) {
             if (this.initialSyncCompleted) {
                 this.spawnDummy(level, pos);
@@ -368,10 +394,9 @@ public class DamageDummyBlockEntity extends BlockEntity implements MenuProvider 
     }
 
     /**
-     * Resolves the stored linked {@link UUID} to a valid anchored dummy,
-     * clearing a stale link. Shared by reconciliation and fresh placement so
-     * both paths treat the persisted UUID as the authoritative link while it
-     * resolves to a live, correctly anchored entity.
+     * Resolves the stored linked {@link UUID} to a valid anchored dummy.
+     * An unresolved UUID is intentionally retained because it distinguishes a
+     * previously BOUND pedestal from one that has never established ownership.
      */
     @Nullable
     private DamageDummyEntity resolveLinkedKeeper(
@@ -389,8 +414,6 @@ public class DamageDummyBlockEntity extends BlockEntity implements MenuProvider 
             return dummy;
         }
 
-        this.linkedDummyUuid = null;
-        this.setChanged();
         return null;
     }
 
@@ -432,8 +455,14 @@ public class DamageDummyBlockEntity extends BlockEntity implements MenuProvider 
     ) {
         for (DamageDummyEntity duplicate : anchored) {
             if (duplicate != keeper) {
-                duplicate.discard();
+                duplicate.discardWithoutAnchorDestruction();
             }
+        }
+    }
+
+    private void destroyBrokenPair(ServerLevel level, BlockPos pos) {
+        if (level.getBlockState(pos).is(ModBlocks.DAMAGE_DUMMY.get())) {
+            level.destroyBlock(pos, true);
         }
     }
 

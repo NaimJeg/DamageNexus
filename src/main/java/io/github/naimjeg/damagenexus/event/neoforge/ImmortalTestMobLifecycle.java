@@ -3,15 +3,18 @@ package io.github.naimjeg.damagenexus.event.neoforge;
 import io.github.naimjeg.damagenexus.DamageNexus;
 import io.github.naimjeg.damagenexus.command.test.TestMobTags;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Pose;
+import net.neoforged.neoforge.common.Tags;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 
-/** Death-only protection for explicitly marked test-exhibit mobs. */
+/** Ordinary-gameplay-damage protection for marked test-exhibit mobs. */
 @EventBusSubscriber(modid = DamageNexus.MODID)
 public final class ImmortalTestMobLifecycle {
 
@@ -28,7 +31,12 @@ public final class ImmortalTestMobLifecycle {
     public static void preventExhibitDeath(LivingDeathEvent event) {
         LivingEntity entity = event.getEntity();
         if (!(entity.level() instanceof ServerLevel)
-                || !TestMobTags.isImmortal(entity)) {
+                || !TestMobTags.isImmortal(entity)
+                || !canProtectFromDeath(event.getSource())) {
+            // A pending marker is meaningful only for the ordinary lethal
+            // transaction whose death this handler cancels. Forced death must
+            // fail closed even if stale external data left the tag behind.
+            entity.removeTag(TestMobTags.PENDING_IMMORTAL_RESTORE);
             return;
         }
 
@@ -55,5 +63,10 @@ public final class ImmortalTestMobLifecycle {
         if (entity.getPose() == Pose.DYING) {
             entity.setPose(Pose.STANDING);
         }
+    }
+
+    private static boolean canProtectFromDeath(DamageSource source) {
+        return !source.is(Tags.DamageTypes.IS_TECHNICAL)
+                && !source.is(DamageTypeTags.BYPASSES_INVULNERABILITY);
     }
 }

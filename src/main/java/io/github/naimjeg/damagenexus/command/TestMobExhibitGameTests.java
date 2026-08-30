@@ -8,7 +8,11 @@ import io.github.naimjeg.damagenexus.command.test.TestMobFactory;
 import io.github.naimjeg.damagenexus.command.test.TestMobPreset;
 import io.github.naimjeg.damagenexus.command.test.TestMobSpawnOptions;
 import io.github.naimjeg.damagenexus.command.test.TestMobTags;
+import io.github.naimjeg.damagenexus.command.test.ResistanceMutation;
+import io.github.naimjeg.damagenexus.command.test.TestMobSpawnConfig;
+import io.github.naimjeg.damagenexus.command.test.TestResistance;
 import io.github.naimjeg.damagenexus.core.gametest.GameTestCodecVerifier;
+import io.github.naimjeg.damagenexus.registry.ModAttributes;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
@@ -64,6 +68,8 @@ final class TestMobExhibitGameTests {
             FORCED_REMOVAL_FUNCTION = functionKey(
             "test_mob_exhibit_forced_removal"
     );
+    private static final ResourceKey<Consumer<GameTestHelper>>
+            MUTATION_FUNCTION = functionKey("test_mob_mutation");
 
     private static UUID settlementTarget;
     private static boolean settlementObserved;
@@ -97,6 +103,11 @@ final class TestMobExhibitGameTests {
                 FORCED_REMOVAL_FUNCTION.identifier(),
                 () -> TestMobExhibitGameTests::forcedDeathAndRemoval
         );
+        event.register(
+                Registries.TEST_FUNCTION,
+                MUTATION_FUNCTION.identifier(),
+                () -> TestMobExhibitGameTests::mutationCommands
+        );
     }
 
     @SubscribeEvent
@@ -110,6 +121,7 @@ final class TestMobExhibitGameTests {
         registerTest(event, environment, LIFECYCLE_FUNCTION);
         registerTest(event, environment, ADMIN_FUNCTION);
         registerTest(event, environment, FORCED_REMOVAL_FUNCTION);
+        registerTest(event, environment, MUTATION_FUNCTION);
     }
 
     @SubscribeEvent
@@ -458,6 +470,146 @@ final class TestMobExhibitGameTests {
                     });
                 }
         );
+    }
+
+    /**
+     * Real-server coverage for the pre-spawn {@code mutation resistance}
+     * command grammar and the {@link TestMobFactory} mutation pipeline.
+     */
+    private static void mutationCommands(GameTestHelper helper) {
+        GameTestCodecVerifier.verifyFunctionInstance(helper);
+        ServerLevel level = helper.getLevel();
+        Vec3 position = helper.absolutePos(
+                new BlockPos(1, 2, 1)
+        ).getBottomCenter();
+
+        // 16.1 direct factory mutation must SET the base value, not add.
+        TestMobFactory.SpawnResult direct = TestMobFactory.spawnPreset(
+                level,
+                TestMobPreset.BASELINE,
+                position,
+                new TestMobSpawnConfig(
+                        TestMobSpawnOptions.DEFAULT,
+                        List.of(new ResistanceMutation(
+                                TestResistance.FIRE,
+                                50.0D
+                        ))
+                )
+        );
+        require(direct.succeeded(),
+                "direct mutation spawn failed: " + direct.failure());
+        Mob mutated = direct.entity();
+        require(mutated.getAttribute(ModAttributes.RESISTANCE_FIRE)
+                        .getBaseValue() == 50.0D,
+                "direct mutation did not set fire resistance base to 50");
+        require(mutated.getAttribute(ModAttributes.RESISTANCE_PHYSICAL)
+                        .getBaseValue() == 0.0D,
+                "direct mutation altered an unrelated resistance");
+        mutated.discard();
+
+        CommandDispatcher<CommandSourceStack> dispatcher = dispatcher();
+
+        // 16.2 default-position command mutation.
+        Mob defaultMob = executeForSingleMob(
+                dispatcher,
+                source(level, position.add(2, 0, 0)),
+                "damagenexus mob zombie mutation resistance fire 50",
+                level
+        );
+        require(defaultMob.getAttribute(ModAttributes.RESISTANCE_FIRE)
+                        .getBaseValue() == 50.0D,
+                "default-position command mutation did not set fire base to 50");
+        defaultMob.discard();
+
+        // 16.3 explicit at-position command mutation.
+        Vec3 atPosition = helper.absolutePos(
+                new BlockPos(3, 2, 3)
+        ).getBottomCenter();
+        Mob atMob = executeForSingleMob(
+                dispatcher,
+                source(level, position.add(4, 0, 0)),
+                String.format(
+                        Locale.ROOT,
+                        "damagenexus mob zombie at %.1f %.1f %.1f "
+                                + "mutation resistance physical 100",
+                        atPosition.x,
+                        atPosition.y,
+                        atPosition.z
+                ),
+                level
+        );
+        assertPosition(atMob, atPosition,
+                "at-position mutation did not use the exact position");
+        require(atMob.getAttribute(ModAttributes.RESISTANCE_PHYSICAL)
+                        .getBaseValue() == 100.0D,
+                "at-position mutation did not set physical base to 100");
+        atMob.discard();
+
+        // 16.4 at + immortal + mutation must preserve the exhibit semantics.
+        Vec3 exhibitPosition = helper.absolutePos(
+                new BlockPos(5, 2, 5)
+        ).getBottomCenter();
+        Mob exhibit = executeForSingleMob(
+                dispatcher,
+                source(level, position.add(6, 0, 0)),
+                String.format(
+                        Locale.ROOT,
+                        "damagenexus mob zombie at %.1f %.1f %.1f "
+                                + "immortal mutation resistance magic 75",
+                        exhibitPosition.x,
+                        exhibitPosition.y,
+                        exhibitPosition.z
+                ),
+                level
+        );
+        assertPosition(exhibit, exhibitPosition,
+                "immortal mutation did not use the exact position");
+        assertExhibit(exhibit);
+        require(exhibit.getAttribute(ModAttributes.RESISTANCE_MAGIC)
+                        .getBaseValue() == 75.0D,
+                "immortal mutation did not set magic base to 75");
+        exhibit.discard();
+
+        // 16.5 ordinary command must not pollute the global resistance defaults.
+        Mob plain = executeForSingleMob(
+                dispatcher,
+                source(level, position.add(8, 0, 0)),
+                "damagenexus mob zombie",
+                level
+        );
+        for (TestResistance testResistance : TestResistance.values()) {
+            require(plain.getAttribute(testResistance.attribute())
+                            .getBaseValue() == 0.0D,
+                    "plain zombie resistance was polluted: "
+                            + testResistance.commandName());
+        }
+        plain.discard();
+
+        // 16.6 out-of-range value must fail to parse and leave no test mob.
+        Set<UUID> beforeInvalid = testMobUuids(level);
+        int invalidResult = executeParseFailure(
+                dispatcher,
+                "damagenexus mob zombie mutation resistance fire 20000",
+                source(level, position.add(10, 0, 0))
+        );
+        require(invalidResult < 0,
+                "out-of-range mutation falsely reported spawn success");
+        require(freshTestMobs(level, beforeInvalid).isEmpty(),
+                "out-of-range mutation left a test entity behind");
+
+        helper.succeed();
+    }
+
+    private static int executeParseFailure(
+            CommandDispatcher<CommandSourceStack> dispatcher,
+            String command,
+            CommandSourceStack source
+    ) {
+        try {
+            return dispatcher.execute(command, source);
+        } catch (CommandSyntaxException exception) {
+            return -1;
+        }
     }
 
     private static CommandDispatcher<CommandSourceStack> dispatcher() {

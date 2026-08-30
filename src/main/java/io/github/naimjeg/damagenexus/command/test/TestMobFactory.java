@@ -21,6 +21,8 @@ import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.List;
+
 public final class TestMobFactory {
 
     private static final int TEN_MINUTES = 20 * 60 * 10;
@@ -34,18 +36,56 @@ public final class TestMobFactory {
             Vec3 pos,
             TestMobSpawnOptions options
     ) {
+        return spawnPreset(
+                level,
+                preset,
+                pos,
+                new TestMobSpawnConfig(options, List.of())
+        );
+    }
+
+    public static SpawnResult spawnPreset(
+            ServerLevel level,
+            TestMobPreset preset,
+            Vec3 pos,
+            TestMobSpawnConfig config
+    ) {
         SpawnFailure validation = validateSpawnPosition(level, pos);
         if (validation != null) {
-            return SpawnResult.failure(preset, pos, options, validation);
+            return SpawnResult.failure(
+                    preset,
+                    pos,
+                    config.options(),
+                    validation
+            );
         }
 
-        Mob mob = createPresetMob(level, preset, pos, options);
+        Mob mob = createPresetMob(
+                level,
+                preset,
+                pos,
+                config.options()
+        );
         if (mob == null) {
             return SpawnResult.failure(
                     preset,
                     pos,
-                    options,
+                    config.options(),
                     SpawnFailure.ENTITY_CREATION_FAILED
+            );
+        }
+
+        SpawnFailure mutationFailure = applyMutations(
+                mob,
+                config.mutations()
+        );
+        if (mutationFailure != null) {
+            mob.discard();
+            return SpawnResult.failure(
+                    preset,
+                    pos,
+                    config.options(),
+                    mutationFailure
             );
         }
 
@@ -54,12 +94,25 @@ public final class TestMobFactory {
             return SpawnResult.failure(
                     preset,
                     pos,
-                    options,
+                    config.options(),
                     SpawnFailure.ADD_TO_LEVEL_FAILED
             );
         }
 
-        return SpawnResult.success(preset, pos, options, mob);
+        return SpawnResult.success(preset, pos, config.options(), mob);
+    }
+
+    private static SpawnFailure applyMutations(
+            Mob mob,
+            List<TestMobMutation> mutations
+    ) {
+        for (TestMobMutation mutation : mutations) {
+            SpawnFailure failure = mutation.apply(mob);
+            if (failure != null) {
+                return failure;
+            }
+        }
+        return null;
     }
 
     public static SpawnFailure validateSpawnPosition(
@@ -481,7 +534,8 @@ public final class TestMobFactory {
         OUTSIDE_WORLD_BORDER("outside_world_border"),
         CHUNK_NOT_LOADED("chunk_not_loaded"),
         ENTITY_CREATION_FAILED("entity_creation_failed"),
-        ADD_TO_LEVEL_FAILED("add_to_level_failed");
+        ADD_TO_LEVEL_FAILED("add_to_level_failed"),
+        MUTATION_ATTRIBUTE_MISSING("mutation_attribute_missing");
 
         private final String translationSuffix;
 

@@ -267,6 +267,20 @@ public final class TestItemFactory {
         );
     }
 
+    /**
+     * Conditional-multiplier probe: final/post multiplier +25% (1.25x) while
+     * the target's current health is strictly above 80% of its maximum health.
+     */
+    public static ItemStack targetHighHealthBonusSword() {
+        return withRuleEntries(
+                named(
+                        new ItemStack(Items.DIAMOND_SWORD),
+                        itemName("target_high_health_bonus")
+                ),
+                List.of(TestRuleFactory.targetHighHealthGlobalPost25())
+        );
+    }
+
     /** A real +20 percentage-point critical multiplier attribute probe. */
     public static ItemStack critDamageAdditiveSword() {
         ItemStack stack = named(

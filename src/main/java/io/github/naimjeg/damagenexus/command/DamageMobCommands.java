@@ -1,11 +1,17 @@
 package io.github.naimjeg.damagenexus.command;
 
+import com.mojang.brigadier.arguments.DoubleArgumentType;
+import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.context.CommandContext;
 import io.github.naimjeg.damagenexus.command.test.TestMobFactory;
 import io.github.naimjeg.damagenexus.command.test.TestMobFactory.SpawnResult;
 import io.github.naimjeg.damagenexus.command.test.TestMobPreset;
+import io.github.naimjeg.damagenexus.command.test.ResistanceMutation;
+import io.github.naimjeg.damagenexus.command.test.TestMobSpawnConfig;
 import io.github.naimjeg.damagenexus.command.test.TestMobSpawnOptions;
 import io.github.naimjeg.damagenexus.command.test.TestMobTags;
+import io.github.naimjeg.damagenexus.command.test.TestResistance;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
@@ -15,6 +21,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Locale;
 
 public final class DamageMobCommands {
@@ -51,21 +58,29 @@ public final class DamageMobCommands {
     private static LiteralArgumentBuilder<CommandSourceStack> presetBranch(
             TestMobPreset preset
     ) {
-        return Commands.literal(preset.commandName())
-                .executes(ctx -> guarded(
-                        ctx.getSource(),
-                        () -> spawnTestMob(
+        PositionSource defaultPosition =
+                context -> context.getSource().getPosition().add(2, 0, 0);
+
+        ArgumentBuilder<CommandSourceStack, ?> positionNode =
+                Commands.argument("pos", Vec3Argument.vec3())
+                        .executes(ctx -> guarded(
                                 ctx.getSource(),
-                                preset,
-                                ctx.getSource().getPosition().add(2, 0, 0),
-                                TestMobSpawnOptions.DEFAULT
-                        )
-                ))
-                .then(Commands.literal("at")
-                        .then(Commands.argument(
-                                        "pos",
-                                        Vec3Argument.vec3()
+                                () -> spawnTestMob(
+                                        ctx.getSource(),
+                                        preset,
+                                        Vec3Argument.getVec3(ctx, "pos"),
+                                        TestMobSpawnConfig.defaults()
                                 )
+                        ))
+                        .then(mutationSubtree(
+                                preset,
+                                context -> Vec3Argument.getVec3(
+                                        context,
+                                        "pos"
+                                ),
+                                TestMobSpawnOptions.DEFAULT
+                        ))
+                        .then(Commands.literal("immortal")
                                 .executes(ctx -> guarded(
                                         ctx.getSource(),
                                         () -> spawnTestMob(
@@ -75,23 +90,109 @@ public final class DamageMobCommands {
                                                         ctx,
                                                         "pos"
                                                 ),
-                                                TestMobSpawnOptions.DEFAULT
+                                                new TestMobSpawnConfig(
+                                                        TestMobSpawnOptions
+                                                                .IMMORTAL_EXHIBIT,
+                                                        List.of()
+                                                )
                                         )
                                 ))
-                                .then(Commands.literal("immortal")
-                                        .executes(ctx -> guarded(
-                                                ctx.getSource(),
-                                                () -> spawnTestMob(
-                                                        ctx.getSource(),
-                                                        preset,
-                                                        Vec3Argument.getVec3(
-                                                                ctx,
-                                                                "pos"
-                                                        ),
-                                                        TestMobSpawnOptions
-                                                                .IMMORTAL_EXHIBIT
-                                                )
-                                        )))));
+                                .then(mutationSubtree(
+                                        preset,
+                                        context -> Vec3Argument.getVec3(
+                                                context,
+                                                "pos"
+                                        ),
+                                        TestMobSpawnOptions.IMMORTAL_EXHIBIT
+                                )));
+
+        return Commands.literal(preset.commandName())
+                .executes(ctx -> guarded(
+                        ctx.getSource(),
+                        () -> spawnTestMob(
+                                ctx.getSource(),
+                                preset,
+                                defaultPosition.resolve(ctx),
+                                TestMobSpawnConfig.defaults()
+                        )
+                ))
+                .then(Commands.literal("at")
+                        .then(positionNode))
+                .then(mutationSubtree(
+                        preset,
+                        defaultPosition,
+                        TestMobSpawnOptions.DEFAULT
+                ));
+    }
+
+    /**
+     * Builds one fresh {@code mutation resistance <type> <value>} subtree for
+     * the given preset. A new builder is deliberately allocated per parent so
+     * Brigadier nodes are never reused across two parents.
+     */
+    private static LiteralArgumentBuilder<CommandSourceStack> mutationSubtree(
+            TestMobPreset preset,
+            PositionSource positionSource,
+            TestMobSpawnOptions options
+    ) {
+        return Commands.literal("mutation")
+                .then(resistanceSubtree(preset, positionSource, options));
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> resistanceSubtree(
+            TestMobPreset preset,
+            PositionSource positionSource,
+            TestMobSpawnOptions options
+    ) {
+        LiteralArgumentBuilder<CommandSourceStack> resistance =
+                Commands.literal("resistance");
+
+        for (TestResistance testResistance : TestResistance.values()) {
+            resistance.then(resistanceValueBranch(
+                    preset,
+                    positionSource,
+                    options,
+                    testResistance
+            ));
+        }
+
+        return resistance;
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack>
+    resistanceValueBranch(
+            TestMobPreset preset,
+            PositionSource positionSource,
+            TestMobSpawnOptions options,
+            TestResistance resistance
+    ) {
+        return Commands.literal(resistance.commandName())
+                .then(Commands.argument(
+                                "value",
+                                DoubleArgumentType.doubleArg(
+                                        TestResistance.MIN_ATTRIBUTE_VALUE,
+                                        TestResistance.MAX_ATTRIBUTE_VALUE
+                                )
+                        )
+                        .executes(ctx -> guarded(
+                                ctx.getSource(),
+                                () -> spawnTestMob(
+                                        ctx.getSource(),
+                                        preset,
+                                        positionSource.resolve(ctx),
+                                        new TestMobSpawnConfig(
+                                                options,
+                                                List.of(new ResistanceMutation(
+                                                        resistance,
+                                                        DoubleArgumentType
+                                                                .getDouble(
+                                                                        ctx,
+                                                                        "value"
+                                                                )
+                                                ))
+                                        )
+                                )
+                        )));
     }
 
     private static int guarded(
@@ -111,11 +212,25 @@ public final class DamageMobCommands {
             Vec3 position,
             TestMobSpawnOptions options
     ) {
+        return spawnTestMob(
+                source,
+                preset,
+                position,
+                new TestMobSpawnConfig(options, List.of())
+        );
+    }
+
+    static int spawnTestMob(
+            CommandSourceStack source,
+            TestMobPreset preset,
+            Vec3 position,
+            TestMobSpawnConfig config
+    ) {
         SpawnResult result = TestMobFactory.spawnPreset(
                 source.getLevel(),
                 preset,
                 position,
-                options
+                config
         );
         String formattedPosition = formatPosition(position);
 
@@ -137,7 +252,7 @@ public final class DamageMobCommands {
                 preset.commandName(),
                 formattedPosition,
                 result.entity().getUUID().toString(),
-                options.immortal()
+                config.options().immortal()
         );
     }
 
@@ -175,5 +290,10 @@ public final class DamageMobCommands {
                 position.y,
                 position.z
         );
+    }
+
+    @FunctionalInterface
+    private interface PositionSource {
+        Vec3 resolve(CommandContext<CommandSourceStack> context);
     }
 }

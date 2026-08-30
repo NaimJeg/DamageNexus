@@ -200,6 +200,7 @@ final class DamageItemClearGameTests {
                 TestItemFactory.affixUniqueGroupProbe(),
                 TestItemFactory.affixReplaceProbe(),
                 TestItemFactory.affixHighestRarityProbe(),
+                TestItemFactory.targetHighHealthBonusSword(),
                 TestItemFactory.powerBow(helper.getLevel()),
                 TestItemFactory.piercingCrossbow(helper.getLevel()),
                 TestItemFactory.impalingTrident(helper.getLevel()),
@@ -272,6 +273,13 @@ final class DamageItemClearGameTests {
             throw new AssertionError(
                     "Multiplier probe does not include Fire base, global pre, "
                             + "and Fire post entries"
+            );
+        }
+
+        if (DamageNexusItemApi.getMaterializedEntries(
+                TestItemFactory.targetHighHealthBonusSword()).size() != 1) {
+            throw new AssertionError(
+                    "Conditional high-health sword did not use one item entry"
             );
         }
     }

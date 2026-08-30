@@ -89,7 +89,15 @@ public final class DamageItemCommands {
                         .then(Commands.literal("multipliers")
                                 .executes(ctx -> giveMultiplierOpsItem(ctx.getSource())))
                         .then(Commands.literal("kit")
-                                .executes(ctx -> giveOperationKit(ctx.getSource())))));
+                                .executes(ctx -> giveOperationKit(ctx.getSource()))))
+
+                .then(Commands.literal("conditional")
+                        .then(Commands.literal("target_health_above_80")
+                                .executes(ctx -> giveTargetHighHealthBonusItem(
+                                        ctx.getSource())))
+                        .then(Commands.literal("kit")
+                                .executes(ctx -> giveConditionalKit(
+                                        ctx.getSource())))));
 
         DamageProjectileItemCommands.register(root);
     }
@@ -106,11 +114,12 @@ public final class DamageItemCommands {
                         giveOperationKit(source, player);
                         giveEntryProbeKit(source, player);
                         giveAffixKit(source, player);
+                        giveConditionalKit(source, player);
                         return 1;
                     });
                     return CommandFeedback.success(
                             source,
-                            "command.damagenexus.items_created", 29
+                            "command.damagenexus.items_created", 30
                     );
                 })
                 .orElse(0);
@@ -475,6 +484,46 @@ public final class DamageItemCommands {
         return CommandFeedback.success(
                 source,
                 "command.damagenexus.items_created", 4
+        );
+    }
+
+    private static int giveTargetHighHealthBonusItem(
+            CommandSourceStack source
+    ) {
+        return CommandFeedback.requirePlayer(source)
+                .map(player -> giveTargetHighHealthBonusItem(source, player))
+                .orElse(0);
+    }
+
+    private static int giveTargetHighHealthBonusItem(
+            CommandSourceStack source,
+            ServerPlayer player
+    ) {
+        give(player, TestItemFactory.targetHighHealthBonusSword());
+
+        return CommandFeedback.success(
+                source,
+                "command.damagenexus.items_created", 1
+        );
+    }
+
+    private static int giveConditionalKit(
+            CommandSourceStack source
+    ) {
+        return CommandFeedback.requirePlayer(source)
+                .map(player -> giveConditionalKit(source, player))
+                .orElse(0);
+    }
+
+    private static int giveConditionalKit(
+            CommandSourceStack source,
+            ServerPlayer player
+    ) {
+        give(player, TestItemFactory.targetHighHealthBonusSword());
+
+        return CommandFeedback.success(
+                source,
+                "command.damagenexus.items_created", 1
         );
     }
 

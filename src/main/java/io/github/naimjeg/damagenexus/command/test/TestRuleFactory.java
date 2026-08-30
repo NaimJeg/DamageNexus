@@ -173,6 +173,21 @@ public final class TestRuleFactory {
                 .build();
     }
 
+    /**
+     * CONDITIONAL_MULTI test rule: grants the target a final/post multiplier
+     * of +25% (1.25x) whenever the victim's current health is strictly above
+     * 80% of its maximum health. Exactly 80% does not qualify.
+     */
+    public static DamageRuleDefinition targetHighHealthGlobalPost25() {
+        return DamageRuleBuilder
+                .offensive(id("test_target_health_above_80_global_post_25"))
+                .conditionalMultiplier()
+                .targetHealthAbove(0.80f)
+                .addGlobalPostMultiplier(0.25f)
+                .trace("测试：目标生命值高于 80% 时最终乘区 +25%")
+                .build();
+    }
+
     public static DamageAffixDefinition blazingEdgeAffix() {
         return new DamageAffixDefinition(
                 id("test_affix_blazing_edge"),

@@ -154,8 +154,14 @@ final class DamageNexusSecurityGameTests {
                 "damagenexus mob netherite_prot at ~ ~ ~ immortal",
                 "damagenexus mob low_hp at ~ ~ ~ immortal",
                 "damagenexus mob invul at ~ ~ ~ immortal",
+                "damagenexus mob zombie mutation resistance fire 50",
+                "damagenexus mob zombie at ~ ~ ~ mutation resistance physical 100",
+                "damagenexus mob zombie at ~ ~ ~ immortal "
+                        + "mutation resistance magic 75",
                 "damagenexus mob mortalize @e[tag="
                         + "damagenexus_test_immortal]",
+                "damagenexus item conditional target_health_above_80",
+                "damagenexus item conditional kit",
                 "damagenexus test targets defense at ~ ~ ~",
                 "damagenexus test targets defense at ~ ~ ~ immortal"
         )) {
